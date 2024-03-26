@@ -1,5 +1,7 @@
 # Power System Operation in Python
 
+**We are still at the early stage of the implementation. There will be more functionalities and flexible I/Os coming in the future. Please watch us progress to have the latest update.**
+
 This repo contains some basic power system operations written in Python and formulated by `cvxpy`, such as:
 - Network Constrained Unit Commitment (with/out integer variables)
 - Economic Dispatch (ongoing)
