@@ -14,9 +14,11 @@ def from_pypower(pypower_case_name: str, new_configs: dict):
 
     basic = pd.DataFrame(columns = ["baseMVA", "slack_idx", "slack_theta"])
     bus = pd.DataFrame(columns = ["GS"])
-    gen = pd.DataFrame(columns = ["idx", "pgmax", "pgmin", 
-                                "cgf", "cgv", "cgsu", "cgsd", "cgstore", 
-                                "rgu", "rgd", "rgsu", "rgsd"])
+    gen = pd.DataFrame(
+        columns = ["idx", "pgmax", "pgmin", 
+                    "cgf", "cgv", "cgsu", "cgsd", "cgstore", 
+                    "rgu", "rgd", "rgsu", "rgsd"]
+                                )
     load = pd.DataFrame(columns = ["idx", "default", "clshed"])
     branch = pd.DataFrame(columns = ["fbus", "tbus", "x", "pfmax", "tap_ratio", "shift_angle"])
     
@@ -40,7 +42,6 @@ def from_pypower(pypower_case_name: str, new_configs: dict):
     else:
         bus["GS"] = np.zeros(len(configs["bus"]))
 
-    # gen["idx"] = list(map(int, configs['gen'][:, GEN_BUS].tolist()))
     gen["idx"] = configs['gen'][:, GEN_BUS].tolist() 
     gen["pgmax"] = configs['gen'][:, PMAX].tolist()
     gen["pgmin"] = configs['gen'][:, PMIN].tolist()
@@ -53,6 +54,9 @@ def from_pypower(pypower_case_name: str, new_configs: dict):
     branch["tbus"] = configs["branch"][:, T_BUS].tolist()
     branch["x"] = configs["branch"][:, BR_X].tolist()
     branch["pfmax"] = configs["branch"][:, RATE_A].tolist()
+    for i in range(len(branch)):
+        if configs["branch"][i, TAP] == 0: # mathmatically 0 means that the tap ratio is 1
+            configs["branch"][i, TAP] = 1
     branch["tap_ratio"] = configs["branch"][:, TAP].tolist()
     branch["shift_angle"] = configs["branch"][:, SHIFT].tolist()
 
@@ -115,6 +119,6 @@ def from_pypower(pypower_case_name: str, new_configs: dict):
         data_frame["wind"]["cwshed"] = base_value * new_configs["wind"]["cwshed_ratio"] * np.ones(len(data_frame["wind"]))
 
     # save to excel
-    with pd.ExcelWriter(f"{pypower_case_name}.xlsx", engine='xlsxwriter') as writer:
+    with pd.ExcelWriter(f"configs/{pypower_case_name}.xlsx", engine='xlsxwriter') as writer:
         for element_name, element_df in data_frame.items():
             element_df.to_excel(writer, sheet_name=element_name, index=False)

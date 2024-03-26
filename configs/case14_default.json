@@ -29,7 +29,6 @@
     },
     "branch": {
         "pfmax": [100.0],
-        "tap_ratio": [1.0],
         "shift_angle": [0.0] 
     }
 }
