@@ -44,13 +44,13 @@ def test_ncuc(pypower_case_name, config_path, T):
     print('total_capacity:', np.sum(my_grid.pgmax).reshape(1, -1) + np.sum(solar, 1) + np.sum(wind, 1))
     print('reserve:', reserve)
 
-    prob = my_grid.solve(ncuc, param_dict)
+    my_grid.solve(ncuc, param_dict)
 
-    if prob.status != 'optimal':
+    if ncuc.status != 'optimal':
         print('Optimization failed')
         return
     else:
-        optimal_value = prob.solve()
+        optimal_value = ncuc.value
         optimal_sol = my_grid.get_sol(ncuc)
 
         print('Optimal value:', optimal_value)

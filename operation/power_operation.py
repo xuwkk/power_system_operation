@@ -229,8 +229,6 @@ class Operation(PowerGrid):
             param.value = parameters[param.name()]
         
         prob.solve(solver = cp.GUROBI, verbose = verbose)
-
-        return prob
     
     @staticmethod  
     def get_sol(prob):
