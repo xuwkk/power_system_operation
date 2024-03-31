@@ -221,14 +221,14 @@ class Operation(PowerGrid):
         return theta @ self.Bf.T  + self.Pfshift.reshape(1, -1)
     
     @staticmethod
-    def solve(prob, parameters: dict, verbose: bool = False):
+    def solve(prob, parameters: dict, verbose: bool = False, solver: str = 'GUROBI'):
         """
         the keys of the parameters should be the same as the parameter names in the problem
         """
         for param in prob.parameters():
             param.value = parameters[param.name()]
         
-        prob.solve(solver = cp.GUROBI, verbose = verbose)
+        prob.solve(solver = getattr(cp, solver.upper()), verbose = verbose)
     
     @staticmethod  
     def get_sol(prob):
