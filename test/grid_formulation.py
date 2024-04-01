@@ -2,16 +2,12 @@ import json
 import sys
 import numpy as np
 sys.path.append('.')
-from utils import from_pypower
+from utils import load_grid
 from pypower import api
-from operation import PowerGrid
 
 def test_grid_formulation(pypower_case_name, config_path):
     
-    with open(config_path, "r") as f:
-        my_configs = json.load(f)
-    from_pypower(pypower_case_name, my_configs)
-    my_grid = PowerGrid(f"configs/{pypower_case_name}.xlsx")
+    my_grid = load_grid(pypower_case_name, config_path)
     grid_pypower = getattr(api, pypower_case_name)()
     grid_pypower_int = api.ext2int(grid_pypower)
 

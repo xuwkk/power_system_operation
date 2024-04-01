@@ -2,19 +2,12 @@ import json
 import sys
 import numpy as np
 sys.path.append('.')
-from utils import from_pypower
-from pypower import api
-from operation import PowerGrid, Operation
-import cvxpy as cp
+from utils import load_grid
 from pprint import pprint
 
 def test_ncuc(pypower_case_name, config_path, T):
 
-    with open(config_path, "r") as f:
-        my_configs = json.load(f)
-    from_pypower(pypower_case_name, my_configs)
-    my_grid = Operation(f"configs/{pypower_case_name}.xlsx")
-
+    my_grid = load_grid(pypower_case_name, config_path)
     ncuc = my_grid.ncuc_no_int(T = T)
 
     # define parameter
