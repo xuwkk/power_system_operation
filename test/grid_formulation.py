@@ -1,4 +1,7 @@
-import json
+"""
+test the grid matrices Bbus, Bf, Pbusinj, Pfinj are the same to the PyPower results
+"""
+
 import sys
 import numpy as np
 sys.path.append('.')

@@ -4,6 +4,7 @@ archive/
 test.py
 !case14.xlsx
 *.ipynb
+delete_file/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -15,11 +15,20 @@ This repo contains some basic power system operations written in Python and form
 
 However, you may also need to have Gurobi, Mosek or other optimization software to efficiently solve the optimization problems, especially if integers are included. Please refer [here](https://www.cvxpy.org/tutorial/advanced/index.html) for details.
 
+Other packages inlcudes 
+```
+openpyxl, XlsxWriter
+```
+
 ## Source
 
 The implementation of this repo follows the online cource [here](https://u.osu.edu/conejo.1/courses/power-system-operations/) and the textbook *Power System Operations* [here](https://link.springer.com/book/10.1007/978-3-319-69407-8), both by Prof. Antonio Conejo.
 
 ## Usage
+
+The optimization formulation replies on reading system configuration from a `.xlsx` file. There are several ways to construct the configuration file, either from scratch or build it from existing configurations.
+
+
 
 ### Import system from PYPOWER
 
@@ -41,3 +50,9 @@ $$
 $$
 
 For a general MIQP, it transforms into:
+
+
+### Utility Test
+
+In the `test/` folder, there are several utility test to verify the performance of the functions, including:
+`test/grid_formilation.py`: to test the DC power flow matrices.

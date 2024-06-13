@@ -5,8 +5,16 @@ import numpy as np
 class Operation(PowerGrid):
 
     def __init__(self, system_path: str):
+        """
+        formulate the power grid operation problem
+        inherit from the PowerGrid class
+        system_path: the path to the system configuration file, must be an excel file
+        """
         super().__init__(system_path)
     
+    """
+    constraints
+    """
     def _flow_constraint(self, constraints, theta):
         for t in range(self.T):
             constraints += [

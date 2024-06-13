@@ -16,7 +16,7 @@ def return_compiler(prob):
     return compiler, params_idx, data['dims'].zero, data['int_vars_idx'], data['bool_vars_idx']
 
 def return_standard_form(compiler, params_val: dict, zero_dim: int):
-    """find teh compiler first to save time
+    """find the compiler first to save time
     the order of params_val should be the same as the param_ids
     output[0]: P (with 1/2 being considered)
     output[1]: q
