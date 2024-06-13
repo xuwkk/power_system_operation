@@ -1,3 +1,7 @@
+"""
+return the standard form of the operation problem as QP or LP
+"""
+
 import cvxpy as cp
 from cvxpy.reductions.solvers.conic_solvers.scs_conif import dims_to_solver_dict
 

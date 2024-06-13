@@ -1,3 +1,6 @@
+"""
+test the standard form conversion
+"""
 import json
 import sys
 import numpy as np

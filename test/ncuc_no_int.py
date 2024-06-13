@@ -19,6 +19,7 @@ def test_ncuc(pypower_case_name, config_path, T):
     reserve = np.random.rand(T) * 0.2
 
     param_dict = {
+        # the name must be the same as the parameter name in the model
         "load": load,
         "pg_init": pg_int,
         "solar": solar,
@@ -47,6 +48,8 @@ def test_ncuc(pypower_case_name, config_path, T):
     pf = my_grid.get_pf(optimal_sol['theta'])
     print('Power flow:')
     print(np.round(pf, 3))
+    print('Max flow limit:')
+    print(my_grid.pfmax)
 
 if __name__ == "__main__":
 

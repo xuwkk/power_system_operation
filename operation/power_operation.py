@@ -145,8 +145,8 @@ class Operation(PowerGrid):
             
         pg = cp.Variable((T, self.no_gen), name = 'pg')                    # generation (T, no_gen)
         ug = cp.Variable((T, self.no_gen), boolean = True, name = 'ug')    # commitment status (T, no_gen)
-        yg = cp.Variable((T, self.no_gen), name = 'yg')                    # start-up status (T, no_gen)
-        zg = cp.Variable((T, self.no_gen), name = 'zg')                    # shut-down status (T, no_gen)
+        yg = cp.Variable((T, self.no_gen), boolean = True, name = 'yg')                    # start-up status (T, no_gen)
+        zg = cp.Variable((T, self.no_gen), boolean = True, name = 'zg')                    # shut-down status (T, no_gen)
         theta = cp.Variable((T, self.no_bus), name = 'theta')              # phase angle (T, no_bus)
         ls = cp.Variable((T, self.no_load), name = 'ls')                   # load shed (T, no_load)
         
@@ -172,25 +172,38 @@ class Operation(PowerGrid):
         
         # constraints
         constraints = []
-        # constraint with initial condition
+        # constraint with initial condition involved
         for t in range(1,T):
+            # on-off
             constraints += [yg[t] - zg[t] == ug[t] - ug[t-1]]  # commitment status
+            # ramp up
             constraints += [
                 pg[t] - pg[t-1] <= cp.multiply(self.rgu, ug[t-1]) + cp.multiply(self.rgsu, yg[t])
             ]
+            # ramp down
+            # ! ug[t]
+            constraints += [
+                pg[t-1] - pg[t] <= cp.multiply(self.rgd, ug[t]) + cp.multiply(self.rgsd, zg[t])
+            ]
         
-        # initial condition
         constraints += [yg[0] - zg[0] == ug[0] - ug_init]      
         constraints += [
             pg[0] - pg_init <= cp.multiply(self.rgu, ug_init) + cp.multiply(self.rgsu, yg[0])
         ]
+        constraints += [
+            pg_init - pg[0] <= cp.multiply(self.rgd, ug[0]) + cp.multiply(self.rgsd, zg[0])
+        ]
 
+        # constraint without initial condition involved
         for t in range(T):
+            # on-off
             constraints += [yg[t] + zg[t] <= 1]
+            # generation limit
             constraints += [pg[t] <= cp.multiply(self.pgmax, ug[t]), pg[t] >= cp.multiply(self.pgmin, ug[t])]
-            constraints += [
-                pg[t-1] - pg[t] <= cp.multiply(self.rgd, ug[t]) + cp.multiply(self.rgsd, zg[t])
-            ]
+
+            # constraints += [
+            #     pg[t-1] - pg[t] <= cp.multiply(self.rgd, ug[t]) + cp.multiply(self.rgsd, zg[t])
+            # ]
         
         constraints = self._flow_constraint(constraints=constraints, theta=theta)
 
@@ -205,12 +218,13 @@ class Operation(PowerGrid):
         
         constraints = self._slack_constraints(constraints=constraints, theta=theta)
 
-        # reserve requirement
+        # reserve requirement: related to the on-off condition
         for t in range(T):
             constraints += [
                 cp.sum(cp.multiply(self.pgmax, ug[t])) >= cp.sum(pg[t]) + reserve[t]
             ]
 
+        # constraints about load shedding
         constraints = self._variable_constraints(constraints=constraints, 
                                                 load=load, 
                                                 ls=ls, 
@@ -231,16 +245,22 @@ class Operation(PowerGrid):
     @staticmethod
     def solve(prob, parameters: dict, verbose: bool = False, solver: str = 'GUROBI'):
         """
+        assign parameter and solve the problem
         the keys of the parameters should be the same as the parameter names in the problem
         """
         for param in prob.parameters():
-            param.value = parameters[param.name()]
-        
+            try:
+                param.value = parameters[param.name()]
+            except:
+                raise ValueError('Parameter name not found in the problem')
+            
         prob.solve(solver = getattr(cp, solver.upper()), verbose = verbose)
     
     @staticmethod  
     def get_sol(prob):
-
+        """
+        clean the output into a dictionary
+        """
         sol = {}
         for var in prob.variables():
             sol[var.name()] = var.value
