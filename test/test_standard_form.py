@@ -33,13 +33,21 @@ def test_ncuc_no_int(pypower_case_name, config_path, T):
     wind = my_grid.wind_default.reshape(1, -1) * (1 + np.random.rand(T, my_grid.no_wind) * 0.2)
     reserve = np.random.rand(T) * 0.2
 
-    params_val_dict = {
-        "load": load,
-        "pg_init": pg_int,
-        "solar": solar,
-        "wind": wind,
-        "reserve": reserve
-    }
+    if T == 1:
+        params_val_dict = {
+            "load": load[0],
+            "solar": solar[0],
+            "wind": wind[0],
+            "reserve": reserve[0]
+        }
+    else:
+        params_val_dict = {
+            "load": load,
+            "pg_init": pg_int,
+            "solar": solar,
+            "wind": wind,
+            "reserve": reserve
+        }
 
     # solve on the original formulation
     my_grid.solve(ncuc, params_val_dict)
@@ -60,7 +68,11 @@ def test_ncuc_no_int(pypower_case_name, config_path, T):
     prob.solve(solver = cp.GUROBI, verbose = False)
 
     print('optimal value by standard form:', prob.value)
+    print('shape of the standard form:', 'P', P.shape, 'q', q.shape, 
+        'r', r.shape, 'A', A.shape, 'b', b.shape, 'G', G.shape, 'h', h.shape)
     print('these two values should be the same.')
+
+    print("=====================================")
 
 def test_ncuc_with_int(pypower_case_name, config_path, T):
 
@@ -70,6 +82,12 @@ def test_ncuc_with_int(pypower_case_name, config_path, T):
     ncuc = my_grid.ncuc_with_int(T = T)
 
     compiler, params_idx, zero_idx, int_idx, bool_idx = return_compiler(ncuc)
+
+    print('compiler:', compiler)
+    print('params_idx:', params_idx)
+    print('zero_idx:', zero_idx)
+    print('int_idx:', int_idx)
+    print('bool_idx:', bool_idx)
 
     # define parameter
     # normal random
@@ -82,20 +100,28 @@ def test_ncuc_with_int(pypower_case_name, config_path, T):
     wind = my_grid.wind_default.reshape(1, -1) * (1 + np.random.rand(T, my_grid.no_wind) * 0.2)
     reserve = np.random.rand(T) * 0.2
 
-    params_val_dict = {
-        "load": load,
-        "pg_init": pg_int,
-        "solar": solar,
-        "wind": wind,
-        "reserve": reserve,
-        "ug_init": ug_init
-    }
+    if T == 1:
+        params_val_dict = {
+            "load": load[0],
+            "solar": solar[0],
+            "wind": wind[0],
+            "reserve": reserve[0],
+        }
+    else:
+        params_val_dict = {
+            "load": load,
+            "pg_init": pg_int,
+            "solar": solar,
+            "wind": wind,
+            "reserve": reserve,
+            "ug_init": ug_init
+        }
 
     # solve on the original formulation
     my_grid.solve(ncuc, params_val_dict)
 
     print('optimal value by original form:', ncuc.value)
-    exit()
+
     # solve by the standard form
     params_val = {idx: params_val_dict[name] for idx, name in params_idx.items()}
 
@@ -108,6 +134,7 @@ def test_ncuc_with_int(pypower_case_name, config_path, T):
     constraints = [A @ x == b, G @ x <= h]
 
     if len(bool_idx) > 0:
+        # set the integer (binary) constraints
         constraints += [FiniteSet(x[bool_idx], [0, 1])
                         ]
     
