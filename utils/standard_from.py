@@ -6,16 +6,28 @@ import cvxpy as cp
 from cvxpy.reductions.solvers.conic_solvers.scs_conif import dims_to_solver_dict
 
 def return_compiler(prob):
+    """
+    return:
+        - compiler: the compiler of the problem in standard form
+        - params_idx: {param_id: param_name}, link the id to the parameter name
+        - zero_dim: the number of equality constraint in the standard form 
+                                        (always be the first rows in the matrix)
+        - int_vars_idx: the index of integer variables
+        - bool_vars_idx: the index of boolean variables
+    """
 
     data, _, _ = prob.get_problem_data(
-                solver=cp.GUROBI, solver_opts={'use_quad_obj': True})  # set True can force the objective to be quadrtic
+                solver=cp.GUROBI, solver_opts={'use_quad_obj': True})  
+    # ! set True can force the objective to be quadrtic
     
     assert data['dims'].exp == 0, 'does not support cone'
     assert len(data['dims'].psd) == 0, 'does not support cone'
     assert len(data['dims'].soc) == 0, 'does not support cone'
 
     compiler = data[cp.settings.PARAM_PROB]
-    params_idx = {p.id: p.name() for p in prob.parameters()}  # the order of parameter ids are changed internally
+    
+    # ! the order of parameter idx is changed internally in cvxpy so we link the id to the name
+    params_idx = {p.id: p.name() for p in prob.parameters()}  
 
     return compiler, params_idx, data['dims'].zero, data['int_vars_idx'], data['bool_vars_idx']
 

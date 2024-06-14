@@ -20,6 +20,14 @@ def test_ncuc_no_int(pypower_case_name, config_path, T):
 
     compiler, params_idx, zero_idx, int_idx, bool_idx = return_compiler(ncuc)
 
+    print('compiler:', compiler)
+    print('params_idx:', params_idx)
+    print('zero_idx:', zero_idx)
+    print('int_idx:', int_idx)
+    print('bool_idx:', bool_idx)
+
+    exit()
+
     # define parameter normal random
     load = my_grid.load_default.reshape(1,-1) * 2.0 * (1 + np.random.rand(T, my_grid.no_load) * 0.4)
     pg_int = my_grid.pgmax * 0.5
