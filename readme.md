@@ -1,10 +1,14 @@
 # Power System Operation in Python
 
+## Introduction
+
 **We are still at the early stage of the implementation. There will be more functionalities and flexible I/Os coming in the future. Please watch us progress to have the latest update.**
 
+The main purpose of this repository is to provide an efficient I/O for generating the optimization problem in power system operation and host a basic set of basic power system operation formulations for the future research and teaching purpose.
+
 This repo contains some basic power system operations written in Python and formulated by `cvxpy`, such as:
-- Network Constrained Unit Commitment (with/out integer variables as QP/MIQP)
-- Economic Dispatch (as QP, ongoing)
+- Network Constrained Unit Commitment (with/out integer variables) (finished) 
+- Economic Dispatch (finished)
 - Stochastic Unit Commitment (ongoing)
 
 ## Package Dependencies
@@ -20,23 +24,22 @@ Other packages inlcudes
 openpyxl, XlsxWriter
 ```
 
-## Source
+## References
 
-The implementation of this repo follows the online cource [here](https://u.osu.edu/conejo.1/courses/power-system-operations/) and the textbook *Power System Operations* [here](https://link.springer.com/book/10.1007/978-3-319-69407-8), both by Prof. Antonio Conejo.
+The implementation of this repo follows the online cource [here](https://u.osu.edu/conejo.1/courses/power-system-operations/) and the textbook *Power System Operations* [here](https://link.springer.com/book/10.1007/978-3-319-69407-8), both by Prof. Antonio Conejo. We also write a series of blog posts to explain the formulation used in the code, including:
+- [Power system modeling](https://xuwkk.github.io/blog/posts/learning/power_system/power_system_operation.html)
+- [Unit Commitment](https://xuwkk.github.io/blog/posts/learning/power_system/ncuc.html)
+- [Economic Dispatch](https://xuwkk.github.io/blog/posts/learning/power_system/ed.html)
 
 ## Usage
 
-The optimization formulation replies on reading system configuration from a `.xlsx` file. There are several ways to construct the configuration file, either from scratch or build it from existing configurations.
-
-
+The optimization formulation replies on reading system configuration from a `.xlsx` file. There are several ways to construct the configuration file, either from scratch or build it from existing configurations via the `PyPower` package. An example file can be found [here](configs/case14.xlsx).
 
 ### Import system from PYPOWER
 
-The package requires a `.csv` file to contain the configuration of power system operation. The basic format follows the `MatPower` and `PyPower` styles. An example file can be found [here](configs/case14.xlsx).
+We recommend to construct the `.xlsx` file from the basic `PyPower` file to avoid errors. The `PyPower` contains several grid topology and parameters that can be directly read by the package. However, you must include several necessary extra configs (that are not covered by the `PyPower`) to support the full functionality of power system operation. An example can be found [here](configs/case14_default.json). The detailed description on how to construct the extra config file can be found [here](readme_configs.md).
 
-We recommend to construct the `.csv` file from the basic `PyPower` file to avoid errors. To do so, you also need to provide another `.json` file to specify configs that are not covered by the `PyPower`. Please have a look [here](configs/case14_default.json). The detailed description on how to construct the extra config file can be found [here](readme_configs.md).
-
-### Reformulate the problem as standardard form QP/MIQP
+<!-- ### Reformulate the problem as standardard form QP/MIQP
 
 The functions in `test/standard_form.py` are developed to reformulate the UC/ED in `cvxpy` form into the correspinding standard form. This conversion is general in addition to the UC/ED. Therefore it can be used outside power system operation. In this sense, you can "standardize" your problem by leveraging the descriptive power of `cvxpy`.
 
@@ -55,4 +58,4 @@ For a general MIQP, it transforms into:
 ### Utility Test
 
 In the `test/` folder, there are several utility test to verify the performance of the functions, including:
-`test/grid_formilation.py`: to test the DC power flow matrices.
+`test/grid_formilation.py`: to test the DC power flow matrices. -->
