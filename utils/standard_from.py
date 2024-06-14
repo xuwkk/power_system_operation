@@ -7,6 +7,7 @@ from cvxpy.reductions.solvers.conic_solvers.scs_conif import dims_to_solver_dict
 
 def return_compiler(prob):
     """
+    return the compiler of the problem given by cvxpy
     return:
         - compiler: the compiler of the problem in standard form
         - params_idx: {param_id: param_name}, link the id to the parameter name

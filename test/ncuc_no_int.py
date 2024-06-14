@@ -17,14 +17,24 @@ def test_ncuc(pypower_case_name, config_path, T):
     wind = my_grid.wind_default.reshape(1, -1) * (1 + np.random.rand(T, my_grid.no_wind) * 0.2)
     reserve = np.random.rand(T) * 0.2
 
-    param_dict = {
-        # the name must be the same as the parameter name in the model
-        "load": load,
-        "pg_init": pg_int,
-        "solar": solar,
-        "wind": wind,
-        "reserve": reserve
-    }
+    if T == 1:
+        param_dict = {
+            # the name must be the same as the parameter name in the model
+            "load": load[0],
+            # "pg_init": pg_int,
+            "solar": solar[0],
+            "wind": wind[0],
+            "reserve": reserve[0]
+        }
+    else:
+        param_dict = {
+            # the name must be the same as the parameter name in the model
+            "load": load,
+            "pg_init": pg_int,
+            "solar": solar,
+            "wind": wind,
+            "reserve": reserve
+        }
 
     print('total_load:', np.sum(load, 1))
     print('total_capacity:', np.sum(my_grid.pgmax).reshape(1, -1) + np.sum(solar, 1) + np.sum(wind, 1))

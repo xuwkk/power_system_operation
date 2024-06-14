@@ -26,8 +26,6 @@ def test_ncuc_no_int(pypower_case_name, config_path, T):
     print('int_idx:', int_idx)
     print('bool_idx:', bool_idx)
 
-    exit()
-
     # define parameter normal random
     load = my_grid.load_default.reshape(1,-1) * 2.0 * (1 + np.random.rand(T, my_grid.no_load) * 0.4)
     pg_int = my_grid.pgmax * 0.5
@@ -97,7 +95,7 @@ def test_ncuc_with_int(pypower_case_name, config_path, T):
     my_grid.solve(ncuc, params_val_dict)
 
     print('optimal value by original form:', ncuc.value)
-
+    exit()
     # solve by the standard form
     params_val = {idx: params_val_dict[name] for idx, name in params_idx.items()}
 
@@ -131,7 +129,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--pypower_case_name', type=str, default="case14")
     parser.add_argument('-c', '--config_path', type=str, default="configs/case14_default.json")
-    parser.add_argument('-T', '--T', type=int, default=6)
+    parser.add_argument('-T', '--T', type=int, default=2)
     args = parser.parse_args()
 
     test_ncuc_no_int(args.pypower_case_name, config_path=args.config_path, T = args.T)

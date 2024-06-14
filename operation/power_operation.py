@@ -9,6 +9,7 @@ class Operation(PowerGrid):
         formulate the power grid operation problem
         inherit from the PowerGrid class
         system_path: the path to the system configuration file, must be an excel file
+        ! currently we use 1D array when the UC and ED only have one time period
         todo: for ed problem, should we use 2D array or 1D array
         """
         super().__init__(system_path)
@@ -82,7 +83,72 @@ class Operation(PowerGrid):
 
         return constraints
     
+    def ncuc_no_int_single(self):
+        """
+        for the case with only one time period: we ignore the ramp constraints
+        """
+
+        load = cp.Parameter((self.no_load), name = 'load')                   # load forecast (no_load)
+        reserve = cp.Parameter((), name = 'reserve')                         # reserve requirement
+
+        pg = cp.Variable((self.no_gen), name = 'pg')                        # generation (no_gen)
+        theta = cp.Variable((self.no_bus), name = 'theta')                  # phase angle (no_bus)
+        ls = cp.Variable((self.no_load), name = 'ls')                       # load shed (no_load)
+
+        solar = cp.Parameter((self.no_solar), name = 'solar') if self.no_solar > 0 else None
+        solarc = cp.Variable((self.no_solar), name = 'solarc') if self.no_solar > 0 else None
+        wind = cp.Parameter((self.no_wind), name = 'wind') if self.no_wind > 0 else None
+        windc = cp.Variable((self.no_wind), name = 'windc') if self.no_wind > 0 else None
+
+        # objective function
+        obj = cp.scalar_product(self.cgv, pg)              # generator varying cost
+        obj += cp.scalar_product(self.clshed, ls)           # load shed cost
+        if self.no_solar > 0:
+            obj += cp.scalar_product(self.csshed, solarc)
+        if self.no_wind > 0:
+            obj += cp.scalar_product(self.cwshed, windc)
+
+        # constraints
+        constraints = []
+        constraints += [pg <= self.pgmax, pg >= self.pgmin]
+
+        # branch flow limit
+        constraints = self._flow_constraint(1, constraints=constraints, theta=theta)
+
+        # power balance
+        constraints = self._power_balance_constraint(1, constraints=constraints,
+                                                    theta=theta,
+                                                    pg=pg,
+                                                    load=load,
+                                                    ls=ls,
+                                                    solar = solar, solarc = solarc,
+                                                    wind = wind, windc = windc
+                                                    )
+        
+        # slack bus angle
+        constraints = self._slack_constraints(1, constraints=constraints, theta=theta)
+
+        # reserve requirement
+        constraints += [np.sum(self.pgmax) >= cp.sum(pg) + reserve]
+
+        # constraints on the decision variables
+        constraints = self._variable_constraints(1, constraints=constraints,
+                                                load=load,
+                                                ls=ls,
+                                                solar = solar, solarc = solarc,
+                                                wind = wind, windc = windc
+                                                )
+        
+        # formulate the problem
+        problem = cp.Problem(cp.Minimize(obj), constraints)
+
+        return problem
+
+
     def ncuc_no_int(self, T: int = 24):
+
+        if T == 1:
+            return self.ncuc_no_int_single()
 
         # formulate network constrained unit commitment (ncuc) without integer variable
 
@@ -95,12 +161,10 @@ class Operation(PowerGrid):
         theta = cp.Variable((T, self.no_bus), name = 'theta')              # phase angle (T, no_bus)
         ls = cp.Variable((T, self.no_load), name = 'ls')                   # load shed (T, no_load)
         
-        if self.no_solar > 0:
-            solar = cp.Parameter((T, self.no_solar), name = 'solar')
-            solarc = cp.Variable((T, self.no_solar), name = 'solarc')      # solar curtailment (T, no_solar)
-        if self.no_wind > 0:
-            wind = cp.Parameter((T, self.no_wind), name = 'wind')
-            windc = cp.Variable((T, self.no_wind), name = 'windc')
+        solar = cp.Parameter((T, self.no_solar), name = 'solar') if self.no_solar > 0 else None
+        solarc = cp.Variable((T, self.no_solar), name = 'solarc') if self.no_solar > 0 else None
+        wind = cp.Parameter((T, self.no_wind), name = 'wind') if self.no_wind > 0 else None
+        windc = cp.Variable((T, self.no_wind), name = 'windc') if self.no_wind > 0 else None
         
         # objective function
         obj = 0
@@ -134,8 +198,8 @@ class Operation(PowerGrid):
                                                     pg=pg, 
                                                     load=load, 
                                                     ls=ls, 
-                                                    solar = solar if self.no_solar > 0 else None, solarc = solarc if self.no_solar > 0 else None,
-                                                    wind = wind if self.no_wind > 0 else None, windc = windc if self.no_wind > 0 else None
+                                                    solar = solar, solarc = solarc,
+                                                    wind = wind, windc = windc
                                                     )
 
         # slack bus angle
@@ -153,8 +217,8 @@ class Operation(PowerGrid):
                                                 constraints=constraints, 
                                                 load=load, 
                                                 ls=ls, 
-                                                solar = solar if self.no_solar > 0 else None, solarc = solarc if self.no_solar > 0 else None,
-                                                wind = wind if self.no_wind > 0 else None, windc = windc if self.no_wind > 0 else None
+                                                solar = solar, solarc = solarc,
+                                                wind = wind, windc = windc
                                                 )
         
         # formulate the problem
@@ -162,7 +226,78 @@ class Operation(PowerGrid):
 
         return problem
 
+    def ncuc_with_int_single(self):
+
+        """
+        special treatment for the ncuc with single time step
+        ! no ramp constraints but has on-off constraints
+        """
+
+        load = cp.Parameter((self.no_load), name = 'load')                   # load forecast (no_load)
+        reserve = cp.Parameter((), name = 'reserve')                           # reserve requirement
+
+        pg = cp.Variable((self.no_gen), name = 'pg')                    # generation (no_gen)
+        ug = cp.Variable((self.no_gen), boolean = True, name = 'ug')    # commitment status (no_gen)
+        theta = cp.Variable((self.no_bus), name = 'theta')              # phase angle (no_bus)
+        ls = cp.Variable((self.no_load), name = 'ls')                   # load shed (no_load)
+
+        solar = cp.Parameter((self.no_solar), name = 'solar') if self.no_solar > 0 else None
+        solarc = cp.Variable((self.no_solar), name = 'solarc') if self.no_solar > 0 else None
+        wind = cp.Parameter((self.no_wind), name = 'wind') if self.no_wind > 0 else None
+        windc = cp.Variable((self.no_wind), name = 'windc') if self.no_wind > 0 else None
+
+        # objective function
+        obj = cp.scalar_product(self.cgf, ug)
+        obj += cp.scalar_product(self.cgv, pg)              # generator varying cost
+        obj += cp.scalar_product(self.clshed, ls)           # load shed cost
+        if self.no_solar > 0:
+            obj += cp.scalar_product(self.csshed, solarc)
+        if self.no_wind > 0:
+            obj += cp.scalar_product(self.cwshed, windc)
+
+        # constraints
+        constraints = []
+        
+        # generator limits
+        constraints += [pg <= cp.multiply(self.pgmax, ug), pg >= cp.multiply(self.pgmin, ug)]
+        
+        # branch flow limit
+        constraints = self._flow_constraint(1, constraints=constraints, theta=theta)
+
+        # power balance
+        constraints = self._power_balance_constraint(1, constraints=constraints,
+                                                    theta=theta,
+                                                    pg=pg,
+                                                    load=load,
+                                                    ls=ls,
+                                                    solar = solar, solarc = solarc,
+                                                    wind = wind, windc = windc
+                                                    )
+        
+        # slack bus angle
+        constraints = self._slack_constraints(1, constraints=constraints, theta=theta)
+
+        # reserve requirement
+        constraints += [np.sum(self.pgmax) >= cp.sum(pg) + reserve]
+
+        # constraints on the decision variables
+        constraints = self._variable_constraints(1, constraints=constraints,
+                                                load=load,
+                                                ls=ls,
+                                                solar = solar, solarc = solarc,
+                                                wind = wind, windc = windc
+                                                )
+        
+        # formulate the problem
+        problem = cp.Problem(cp.Minimize(obj), constraints)
+
+        return problem
+
+
     def ncuc_with_int(self, T: int = 24):
+
+        if T == 1:
+            return self.ncuc_with_int_single()
         
         # formulate network constrained unit commitment (ncuc) with integer variable
 
@@ -179,12 +314,10 @@ class Operation(PowerGrid):
         theta = cp.Variable((T, self.no_bus), name = 'theta')              # phase angle (T, no_bus)
         ls = cp.Variable((T, self.no_load), name = 'ls')                   # load shed (T, no_load)
         
-        if self.no_solar > 0:
-            solar = cp.Parameter((T, self.no_solar), name = 'solar')
-            solarc = cp.Variable((T, self.no_solar), name = 'solarc')      # solar curtailment (T, no_solar)
-        if self.no_wind > 0:
-            wind = cp.Parameter((T, self.no_wind), name = 'wind')
-            windc = cp.Variable((T, self.no_wind), name = 'windc')
+        solar = cp.Parameter((T, self.no_solar), name = 'solar') if self.no_solar > 0 else None
+        solarc = cp.Variable((T, self.no_solar), name = 'solarc') if self.no_solar > 0 else None
+        wind = cp.Parameter((T, self.no_wind), name = 'wind') if self.no_wind > 0 else None
+        windc = cp.Variable((T, self.no_wind), name = 'windc') if self.no_wind > 0 else None
         
         # objective function
         obj = 0
@@ -241,8 +374,8 @@ class Operation(PowerGrid):
                                                     pg=pg, 
                                                     load=load, 
                                                     ls=ls, 
-                                                    solar=solar if self.no_solar > 0 else None, solarc=solarc if self.no_solar > 0 else None,
-                                                    wind=wind if self.no_wind > 0 else None, windc=windc if self.no_wind > 0 else None
+                                                    solar=solar, solarc=solarc,
+                                                    wind=wind, windc=windc
                                                     )
         
         constraints = self._slack_constraints(T, constraints=constraints, theta=theta)
@@ -257,8 +390,8 @@ class Operation(PowerGrid):
         constraints = self._variable_constraints(T, constraints=constraints, 
                                                 load=load, 
                                                 ls=ls, 
-                                                solar=solar if self.no_solar > 0 else None, solarc=solarc if self.no_solar > 0 else None,
-                                                wind=wind if self.no_wind > 0 else None, windc=windc if self.no_wind > 0 else None
+                                                solar=solar, solarc=solarc,
+                                                wind=wind, windc=windc
                                                 )
         
         # formulate the problem
@@ -280,12 +413,10 @@ class Operation(PowerGrid):
         theta = cp.Variable((self.no_bus), name = 'theta')              # phase angle (no_bus)
         ls = cp.Variable((self.no_load), name = 'ls')                   # load shed (no_load)
 
-        if self.no_solar > 0:
-            solar = cp.Parameter((self.no_solar), name = 'solar')
-            solarc = cp.Variable((self.no_solar), name = 'solarc')
-        if self.no_wind > 0:
-            wind = cp.Parameter((self.no_wind), name = 'wind')
-            windc = cp.Variable((self.no_wind), name = 'windc')
+        solar = cp.Parameter((self.no_solar), name = 'solar') if self.no_solar > 0 else None
+        solarc = cp.Variable((self.no_solar), name = 'solarc') if self.no_solar > 0 else None
+        wind = cp.Parameter((self.no_wind), name = 'wind') if self.no_wind > 0 else None
+        windc = cp.Variable((self.no_wind), name = 'windc') if self.no_wind > 0 else None
 
         # objective function
         obj = 0
@@ -313,8 +444,8 @@ class Operation(PowerGrid):
                                                     pg=pg + delta_pg, 
                                                     load=load, 
                                                     ls=ls, 
-                                                    solar=solar if self.no_solar > 0 else None, solarc=solarc if self.no_solar > 0 else None,
-                                                    wind=wind if self.no_wind > 0 else None, windc=windc if self.no_wind > 0 else None
+                                                    solar=solar, solarc=solarc,
+                                                    wind=wind, windc=windc
                                                     )
         
         # slack bus angle
@@ -324,8 +455,8 @@ class Operation(PowerGrid):
         constraints = self._variable_constraints(1, constraints=constraints, 
                                                 load=load, 
                                                 ls=ls, 
-                                                solar=solar if self.no_solar > 0 else None, solarc=solarc if self.no_solar > 0 else None,
-                                                wind=wind if self.no_wind > 0 else None, windc=windc if self.no_wind > 0 else None
+                                                solar=solar, solarc=solarc,
+                                                wind=wind, windc=windc
                                                 )
         
         # formulate the problem
@@ -336,7 +467,10 @@ class Operation(PowerGrid):
     def get_pf(self, theta):
 
         # calculate the power flow
-        return theta @ self.Bf.T  + self.Pfshift.reshape(1, -1)
+        if theta.ndim == 1:
+            return self.Bf @ theta + self.Pfshift
+        else:
+            return theta @ self.Bf.T  + self.Pfshift.reshape(1, -1)
     
     @staticmethod
     def solve(prob, parameters: dict, verbose: bool = False, solver: str = 'GUROBI'):
@@ -348,7 +482,7 @@ class Operation(PowerGrid):
             try:
                 param.value = parameters[param.name()]
             except:
-                raise ValueError('Parameter name not found in the problem')
+                raise ValueError(f'Parameter name {param.name()} not found in the problem or the dimension is not correct.')
             
         prob.solve(solver = getattr(cp, solver.upper()), verbose = verbose)
     
