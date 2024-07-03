@@ -1,5 +1,5 @@
 """
-test the standard form conversion
+test the standard form conversion for matrix form
 """
 import json
 import sys
@@ -12,26 +12,37 @@ import cvxpy as cp
 from pprint import pprint
 from cvxpy.constraints.finite_set import FiniteSet
 
-def test_ncuc_no_int(pypower_case_name, config_path, T):
+def generate_data(my_grid, T, load_scale):
 
-    print('run ncuc without bool variables')
-    my_grid = load_grid(pypower_case_name, config_path)
-    ncuc = my_grid.ncuc_no_int(T = T)
-
-    compiler, params_idx, zero_idx, int_idx, bool_idx = return_compiler(ncuc)
-
-    print('compiler:', compiler)
-    print('params_idx:', params_idx)
-    print('zero_idx:', zero_idx)
-    print('int_idx:', int_idx)
-    print('bool_idx:', bool_idx)
-
-    # define parameter normal random
-    load = my_grid.load_default.reshape(1,-1) * 2.0 * (1 + np.random.rand(T, my_grid.no_load) * 0.4)
+    ug_init = np.zeros((my_grid.no_gen))
+    load = my_grid.load_default.reshape(1,-1) * load_scale * (1 + np.random.rand(T, my_grid.no_load) * 0.4)
     pg_int = my_grid.pgmax * 0.5
     solar = my_grid.solar_default.reshape(1, -1) * (1 + np.random.rand(T, my_grid.no_solar) * 0.2)
     wind = my_grid.wind_default.reshape(1, -1) * (1 + np.random.rand(T, my_grid.no_wind) * 0.2)
     reserve = np.random.rand(T) * 0.2
+
+    return ug_init, load, pg_int, solar, wind, reserve
+
+def ncuc_no_int(pypower_case_name, config_path, T, seed):
+
+    print('run ncuc without bool variables')
+
+    np.random.seed(seed)
+
+    """
+    solve by original formulation
+    """
+
+    my_grid = load_grid(pypower_case_name, config_path)
+    ncuc = my_grid.ncuc_no_int(T = T)
+
+    param_qp_prog, params_idx, zero_idx, int_idx, bool_idx = return_compiler(ncuc)
+
+    print('compiler:', param_qp_prog)
+    print('params_idx:', params_idx)
+    print('zero_idx:', zero_idx, '\nint no:', int_idx, '\nbool no:', bool_idx)
+
+    ug_init, load, pg_int, solar, wind, reserve = generate_data(my_grid, T, load_scale=2.0)
 
     if T == 1:
         params_val_dict = {
@@ -54,10 +65,13 @@ def test_ncuc_no_int(pypower_case_name, config_path, T):
 
     print('optimal value by original form:', ncuc.value)
 
-    # solve by the standard form
+    """
+    solve by the standard form
+    """
+
     params_val = {idx: params_val_dict[name] for idx, name in params_idx.items()}
 
-    P, q, r, A, b, G, h  = return_standard_form(compiler, 
+    P, q, r, A, b, G, h  = return_standard_form(param_qp_prog, 
                                             params_val, 
                                             zero_dim = zero_idx)
     
@@ -68,37 +82,33 @@ def test_ncuc_no_int(pypower_case_name, config_path, T):
     prob.solve(solver = cp.GUROBI, verbose = False)
 
     print('optimal value by standard form:', prob.value)
-    print('shape of the standard form:', 'P', P.shape, 'q', q.shape, 
-        'r', r.shape, 'A', A.shape, 'b', b.shape, 'G', G.shape, 'h', h.shape)
     print('these two values should be the same.')
 
+    print('shape of the standard form:', 'P', P.shape, 'q', q.shape, 
+        'r', r.shape, 'A', A.shape, 'b', b.shape, 'G', G.shape, 'h', h.shape)
+    print('rank of P:', np.linalg.matrix_rank(P), 'rank of A:', np.linalg.matrix_rank(A), 'rank of G:', np.linalg.matrix_rank(G))
+    print('rank of the composite matrix:', np.linalg.matrix_rank(np.vstack([A, G])))
+    print('no of decision variable:', P.shape[1])
+    
     print("=====================================")
 
-def test_ncuc_with_int(pypower_case_name, config_path, T):
+def ncuc_with_int(pypower_case_name, config_path, T, seed):
 
     print('run ncuc with bool variables')
+
+    np.random.seed(seed)
+
     my_grid = load_grid(pypower_case_name, config_path)
 
     ncuc = my_grid.ncuc_with_int(T = T)
 
-    compiler, params_idx, zero_idx, int_idx, bool_idx = return_compiler(ncuc)
+    param_qp_prog, params_idx, zero_idx, int_idx, bool_idx = return_compiler(ncuc)
 
-    print('compiler:', compiler)
+    print('compiler:', param_qp_prog)
     print('params_idx:', params_idx)
-    print('zero_idx:', zero_idx)
-    print('int_idx:', int_idx)
-    print('bool_idx:', bool_idx)
+    print('zero_idx:', zero_idx, '\nint no:', int_idx, '\nbool no:', bool_idx)
 
-    # define parameter
-    # normal random
-    # ug_int = np.ones((my_grid.no_gen))
-    ug_init = np.zeros((my_grid.no_gen))
-    load_scale = 1.0
-    load = my_grid.load_default.reshape(1,-1) * load_scale * (1 + np.random.rand(T, my_grid.no_load) * 0.4)
-    pg_int = my_grid.pgmax * 0.5
-    solar = my_grid.solar_default.reshape(1, -1) * (1 + np.random.rand(T, my_grid.no_solar) * 0.2)
-    wind = my_grid.wind_default.reshape(1, -1) * (1 + np.random.rand(T, my_grid.no_wind) * 0.2)
-    reserve = np.random.rand(T) * 0.2
+    ug_init, load, pg_int, solar, wind, reserve = generate_data(my_grid, T, load_scale=2.0)
 
     if T == 1:
         params_val_dict = {
@@ -125,7 +135,7 @@ def test_ncuc_with_int(pypower_case_name, config_path, T):
     # solve by the standard form
     params_val = {idx: params_val_dict[name] for idx, name in params_idx.items()}
 
-    P, q, r, A, b, G, h  = return_standard_form(compiler, 
+    P, q, r, A, b, G, h  = return_standard_form(param_qp_prog, 
                                             params_val, 
                                             zero_dim = zero_idx)
 
@@ -141,13 +151,14 @@ def test_ncuc_with_int(pypower_case_name, config_path, T):
     prob = cp.Problem(objective, constraints)
     prob.solve(solver = cp.GUROBI, verbose = False)
 
+    print('rank of P:', np.linalg.matrix_rank(P), 'rank of A:', np.linalg.matrix_rank(A), 'rank of G:', np.linalg.matrix_rank(G))
+    print('rank of the composite matrix:', np.linalg.matrix_rank(np.vstack([A, G])))
+    print('no of decision variable:', P.shape[1])
+
     print('optimal value by standard form:', prob.value)
     print('these two values should be the same.')
-
-
-
-
-
+    print('shape of the standard form:', 'P', P.shape, 'q', q.shape, 
+        'r', r.shape, 'A', A.shape, 'b', b.shape, 'G', G.shape, 'h', h.shape)
 
 
 if __name__ == "__main__":
@@ -157,8 +168,8 @@ if __name__ == "__main__":
     parser.add_argument('-n', '--pypower_case_name', type=str, default="case14")
     parser.add_argument('-c', '--config_path', type=str, default="configs/case14_default.json")
     parser.add_argument('-T', '--T', type=int, default=2)
+    parser.add_argument('-s', '--seed', type=int, default=0)
     args = parser.parse_args()
 
-    test_ncuc_no_int(args.pypower_case_name, config_path=args.config_path, T = args.T)
-    test_ncuc_with_int(args.pypower_case_name, config_path=args.config_path, T = args.T)
-
+    ncuc_no_int(args.pypower_case_name, config_path=args.config_path, T = args.T, seed=args.seed)
+    ncuc_with_int(args.pypower_case_name, config_path=args.config_path, T = args.T, seed=args.seed)
