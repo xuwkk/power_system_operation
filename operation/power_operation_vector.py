@@ -153,19 +153,35 @@ class Operation(PowerGrid):
         # formulate network constrained unit commitment (ncuc) without integer variable
 
         # parameter and variable
-        load = cp.Parameter((T, self.no_load), name = 'load')              # load forecast (T, no_load)
+        load = cp.Parameter((T * self.no_load), name = 'load')              # load forecast (T, no_load)
         pg_init = cp.Parameter((self.no_gen), name = 'pg_init')                 # initial generation (no_gen)
         reserve = cp.Parameter((T), name = 'reserve')         # reserve requirement (T,)
             
-        pg = cp.Variable((T, self.no_gen), name = 'pg')                    # generation (T, no_gen)
-        theta = cp.Variable((T, self.no_bus), name = 'theta')              # phase angle (T, no_bus)
-        ls = cp.Variable((T, self.no_load), name = 'ls')                   # load shed (T, no_load)
+        pg = cp.Variable((T * self.no_gen), name = 'pg')                    # generation (T, no_gen)
+        theta = cp.Variable((T * self.no_bus), name = 'theta')              # phase angle (T, no_bus)
+        ls = cp.Variable((T * self.no_load), name = 'ls')                   # load shed (T, no_load)
         
-        solar = cp.Parameter((T, self.no_solar), name = 'solar') if self.no_solar > 0 else None
-        solarc = cp.Variable((T, self.no_solar), name = 'solarc') if self.no_solar > 0 else None
-        wind = cp.Parameter((T, self.no_wind), name = 'wind') if self.no_wind > 0 else None
-        windc = cp.Variable((T, self.no_wind), name = 'windc') if self.no_wind > 0 else None
+        solar = cp.Parameter((T * self.no_solar), name = 'solar') if self.no_solar > 0 else None
+        solarc = cp.Variable((T * self.no_solar), name = 'solarc') if self.no_solar > 0 else None
+        wind = cp.Parameter((T * self.no_wind), name = 'wind') if self.no_wind > 0 else None
+        windc = cp.Variable((T * self.no_wind), name = 'windc') if self.no_wind > 0 else None
         
+
+        """
+        the parameters and variables are given in vector form so that it is easier to write in standard form
+        """
+        # reshape
+        load = cp.reshape(load, (T, -1), 'C')
+        pg = cp.reshape(pg, (T, -1), 'C')
+        theta = cp.reshape(theta, (T, -1), 'C')
+        ls = cp.reshape(ls, (T, -1), 'C')
+        if self.no_solar > 0:
+            solar = cp.reshape(solar, (T, -1), 'C')
+            solarc = cp.reshape(solarc, (T, -1), 'C')
+        if self.no_wind > 0:
+            wind = cp.reshape(wind, (T, -1), 'C')
+            windc = cp.reshape(windc, (T, -1), 'C')
+
         # objective function
         obj = 0
         for t in range(T):
@@ -302,22 +318,40 @@ class Operation(PowerGrid):
         # formulate network constrained unit commitment (ncuc) with integer variable
 
         # parameter and variable
-        load = cp.Parameter((T, self.no_load), name = 'load')                   # load forecast (T, no_load)
+        load = cp.Parameter((T * self.no_load), name = 'load')                   # load forecast (T, no_load)
         pg_init = cp.Parameter((self.no_gen), name = 'pg_init')                 # initial generation (no_gen)
         ug_init = cp.Parameter((self.no_gen), boolean = True, name = 'ug_init') # initial commitment status (no_gen)
         reserve = cp.Parameter((T), name = 'reserve')                           # reserve requirement (T,)
             
-        pg = cp.Variable((T, self.no_gen), name = 'pg')                    # generation (T, no_gen)
-        ug = cp.Variable((T, self.no_gen), boolean = True, name = 'ug')    # commitment status (T, no_gen)
-        yg = cp.Variable((T, self.no_gen), boolean = True, name = 'yg')                    # start-up status (T, no_gen)
-        zg = cp.Variable((T, self.no_gen), boolean = True, name = 'zg')                    # shut-down status (T, no_gen)
-        theta = cp.Variable((T, self.no_bus), name = 'theta')              # phase angle (T, no_bus)
-        ls = cp.Variable((T, self.no_load), name = 'ls')                   # load shed (T, no_load)
+        pg = cp.Variable((T * self.no_gen), name = 'pg')                    # generation (T, no_gen)
+        ug = cp.Variable((T * self.no_gen), boolean = True, name = 'ug')    # commitment status (T, no_gen)
+        yg = cp.Variable((T * self.no_gen), boolean = True, name = 'yg')                    # start-up status (T, no_gen)
+        zg = cp.Variable((T * self.no_gen), boolean = True, name = 'zg')                    # shut-down status (T, no_gen)
+        theta = cp.Variable((T * self.no_bus), name = 'theta')              # phase angle (T, no_bus)
+        ls = cp.Variable((T * self.no_load), name = 'ls')                   # load shed (T, no_load)
         
-        solar = cp.Parameter((T, self.no_solar), name = 'solar') if self.no_solar > 0 else None
-        solarc = cp.Variable((T, self.no_solar), name = 'solarc') if self.no_solar > 0 else None
-        wind = cp.Parameter((T, self.no_wind), name = 'wind') if self.no_wind > 0 else None
-        windc = cp.Variable((T, self.no_wind), name = 'windc') if self.no_wind > 0 else None
+        solar = cp.Parameter((T * self.no_solar), name = 'solar') if self.no_solar > 0 else None
+        solarc = cp.Variable((T * self.no_solar), name = 'solarc') if self.no_solar > 0 else None
+        wind = cp.Parameter((T * self.no_wind), name = 'wind') if self.no_wind > 0 else None
+        windc = cp.Variable((T * self.no_wind), name = 'windc') if self.no_wind > 0 else None
+
+        """
+        the parameters and variables are given in vector form so that it is easier to write in standard form
+        """
+        # reshape
+        load = load.reshape((T, -1), 'C')
+        pg = pg.reshape((T, -1), 'C')
+        ug = ug.reshape((T, -1), 'C')
+        yg = yg.reshape((T, -1), 'C')
+        zg = zg.reshape((T, -1), 'C')
+        theta = theta.reshape((T, -1), 'C')
+        ls = ls.reshape((T, -1), 'C')
+        if self.no_solar > 0:
+            solar = solar.reshape((T, -1), 'C')
+            solarc = solarc.reshape((T, -1), 'C')
+        if self.no_wind > 0:
+            wind = wind.reshape((T, -1), 'C')
+            windc = windc.reshape((T, -1), 'C')
         
         # objective function
         obj = 0
@@ -400,10 +434,6 @@ class Operation(PowerGrid):
         return problem
     
     def ed(self):
-        """
-        economic dispatch (ed) problem
-        for one time step only
-        """
 
         # formulate economic dispatch (ed)
         ug = cp.Parameter((self.no_gen), boolean = True, name = 'ug') # commitment status (no_gen)

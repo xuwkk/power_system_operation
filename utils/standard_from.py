@@ -20,17 +20,18 @@ def return_compiler(prob):
     data, _, _ = prob.get_problem_data(
                 solver=cp.GUROBI, solver_opts={'use_quad_obj': True})  
     # ! set True can force the objective to be quadrtic
-    
+
     assert data['dims'].exp == 0, 'does not support cone'
     assert len(data['dims'].psd) == 0, 'does not support cone'
     assert len(data['dims'].soc) == 0, 'does not support cone'
 
-    compiler = data[cp.settings.PARAM_PROB]
+    # parametric QP problem
+    param_qp_prog = data[cp.settings.PARAM_PROB]
     
     # ! the order of parameter idx is changed internally in cvxpy so we link the id to the name
     params_idx = {p.id: p.name() for p in prob.parameters()}  
 
-    return compiler, params_idx, data['dims'].zero, data['int_vars_idx'], data['bool_vars_idx']
+    return param_qp_prog, params_idx, data['dims'].zero, data['int_vars_idx'], data['bool_vars_idx']
 
 def return_standard_form(compiler, params_val: dict, zero_dim: int):
     """find the compiler first to save time
@@ -54,3 +55,47 @@ def return_standard_form(compiler, params_val: dict, zero_dim: int):
     h = output[4][zero_dim:]
     
     return P, q, r, A, b, G, h
+
+
+def return_standard_form_no_value(param_qp_prog, zero_dims):
+    """
+    standard form of the QP problem without parameter value
+    """
+    no_cons = param_qp_prog.constr_size
+    no_var = param_qp_prog.reduced_A.var_len
+
+    P = param_qp_prog.P.toarray()[:,-1].reshape(no_var, no_var)
+    q = param_qp_prog.q.toarray()[:-1,-1]
+
+    A_tilde = param_qp_prog.A.toarray()[:int(no_cons * no_var), -1]
+    A_tilde = A_tilde.reshape(no_var, no_cons).T
+
+    b_tilde = param_qp_prog.A.toarray()[int(no_cons * no_var):, -1]
+
+    A = A_tilde[:zero_dims,:]
+    G = -A_tilde[zero_dims:,:]
+
+    b = -b_tilde[:zero_dims]
+    h = b_tilde[zero_dims:]
+
+    B_tilde = param_qp_prog.A.toarray()[int(no_cons * no_var):, :-1]
+
+    B = {}
+    H = {}
+
+    param_id_to_col = param_qp_prog.param_id_to_col
+    param_id_to_size = param_qp_prog.param_id_to_size
+
+    for key, start_idx in param_id_to_col.items():
+        if key == -1:
+            break
+        size = param_id_to_size[key]
+        B[key] = -B_tilde[:zero_dims, start_idx:start_idx+size]
+        H[key] = B_tilde[zero_dims:, start_idx:start_idx+size] 
+    
+    # # find the matrix corresponding to the parameter in b
+    # # ! only support single parameter
+    # B = B_tilde[:zero_dims, :]
+    # H = B_tilde[zero_dims:, :]
+
+    return P, q, A, G, b, h, B, H # NOTE: negative sign

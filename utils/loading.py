@@ -4,9 +4,10 @@ import pandas as pd
 from .pypower_idx import *
 from collections.abc import Iterable
 from operation import Operation
+from operation.power_operation_vector import Operation as Operation_vector
 import json
 
-def load_grid(pypower_case_name: str, config_path):
+def load_grid(pypower_case_name: str, config_path, vectorize = False):
     """
     main function to load a grid
     pypower_case_name: must be a valid pypower case name, see: https://rwl.github.io/PYPOWER/api/
@@ -18,7 +19,11 @@ def load_grid(pypower_case_name: str, config_path):
         my_configs = json.load(f)
     # load pypower grid and overwrite the default settings
     from_pypower(pypower_case_name, my_configs) # construct the excel file
-    my_grid = Operation(f"configs/{pypower_case_name}.xlsx")
+
+    if vectorize:
+        my_grid = Operation_vector(f"configs/{pypower_case_name}.xlsx")
+    else:
+        my_grid = Operation(f"configs/{pypower_case_name}.xlsx")
 
     return my_grid
 
