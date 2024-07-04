@@ -3,7 +3,6 @@
         "shunt": false
     },
     "load": {
-        "default": [],
         "clshed_ratio": 20
     },
     "solar": {

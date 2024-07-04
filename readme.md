@@ -1,10 +1,13 @@
 # Power System Operation in Python
 
-## Introduction
-
 **We are still at the early stage of the implementation. There will be more functionalities and flexible I/Os coming in the future. Please watch us progress to have the latest update.**
 
-The main purpose of this repository is to provide an efficient I/O for generating the optimization problem in power system operation and host a basic set of basic power system operation formulations for the future research and teaching purpose.
+## Introduction
+
+The main purpose of this repository is to 
+1. provide an efficient I/O for generating the optimization problem in power system operation and 
+2. host a basic set of basic power system operation formulations for the future research and teaching purpose. 
+3. The package also comes with an efficient modifications of the load, solar, and wind data that are suitable for the propose case study. Therefore, it can be used to machine learning applications with large training dataset.
 
 This repo contains some basic power system operations written in Python and formulated by `cvxpy`, such as:
 - Network Constrained Unit Commitment (with/out integer variables) (finished) 
@@ -13,11 +16,11 @@ This repo contains some basic power system operations written in Python and form
 
 ## Package Dependencies
 
-[cvxpy](https://www.cvxpy.org/): is an open source Python-embedded modeling language for convex optimization problems. It lets you express your problem in a natural way that follows the math, rather than in the restrictive standard form required by solvers.
+[cvxpy](https://www.cvxpy.org/): is an open source Python-embedded modeling language for convex optimization problems. It lets you express your problem in a natural and matrix way that follows the math, rather than in the restrictive standard form required by solvers. 
 
-[PyPower](https://github.com/rwl/PYPOWER): is a power flow and Optimal Power Flow (OPF) solver. It is a port of MATPOWER to the Python programming language.
+Note: you may also need to have Gurobi, Mosek or other optimization software to efficiently solve the optimization problems, especially if integers are included. Please refer [here](https://www.cvxpy.org/tutorial/advanced/index.html) for details.
 
-However, you may also need to have Gurobi, Mosek or other optimization software to efficiently solve the optimization problems, especially if integers are included. Please refer [here](https://www.cvxpy.org/tutorial/advanced/index.html) for details.
+[PyPower](https://github.com/rwl/PYPOWER): is a power flow and Optimal Power Flow (OPF) solver. It also hosts a set of commonly used power system testbeds. It is a part of MATPOWER to the Python programming language.
 
 Other packages inlcudes 
 ```
@@ -27,7 +30,7 @@ openpyxl, XlsxWriter
 ## References
 
 The implementation of this repo follows the online cource [here](https://u.osu.edu/conejo.1/courses/power-system-operations/) and the textbook *Power System Operations* [here](https://link.springer.com/book/10.1007/978-3-319-69407-8), both by Prof. Antonio Conejo. We also write a series of blog posts to explain the formulation used in the code, including:
-- [Power system modeling](https://xuwkk.github.io/blog/posts/learning/power_system/power_system_operation.html)
+- [Power system AC and DC modeling](https://xuwkk.github.io/blog/posts/learning/power_system/power_system_operation.html)
 - [Unit Commitment](https://xuwkk.github.io/blog/posts/learning/power_system/ncuc.html)
 - [Economic Dispatch](https://xuwkk.github.io/blog/posts/learning/power_system/ed.html)
 
@@ -37,8 +40,38 @@ The optimization formulation replies on reading system configuration from a `.xl
 
 ### Import system from PYPOWER
 
-We recommend to construct the `.xlsx` file from the basic `PyPower` file to avoid errors. The `PyPower` contains several grid topology and parameters that can be directly read by the package. However, you must include several necessary extra configs (that are not covered by the `PyPower`) to support the full functionality of power system operation. An example can be found [here](configs/case14_default.json). The detailed description on how to construct the extra config file can be found [here](readme_configs.md).
+We recommend to construct the `.xlsx` file from the basic `PyPower` file to avoid errors. The `PyPower` contains several grid topology and parameters that can be directly read by the package. However, you must include several necessary extra configs (that are not covered by the `PyPower`) to support the full functionality of power system operation. For example, you need to specifiy the up and down cost and limit of the generators to formulate the UC. An example can be found [here](configs/case14_default.json). The detailed description on how to construct the extra config file can be found [here](readme_configs.md).
 
+### Generate Data
+
+We use open source dataset from [A Synthetic Texas Backbone Power System with Climate-Dependent Spatio-Temporal Correlated Profiles](https://arxiv.org/abs/2302.13231). You can download/read the descriptions of the dataset from [the official webpage](https://rpglab.github.io/resources/TX-123BT/). 
+
+*Please cite/recogenize the original authors if you use the dataset.*
+
+After download the the `.zip` file into the `data/` and change the name into `raw_data.zip`, unzip the file by 
+```bash
+unzip data/raw_data.zip -d data/
+```
+
+This will give a new folder `data/Data_public/` (~1min).
+
+To clean the data, run
+```bash
+python utils/data.py --FORCE_NEW
+```
+Other argument includes
+- `--FORCE_NEW`: to force the data to be re-generated and all the previous data will be removed
+- `--NO_LOAD`: the number of load
+- `--NO_SOLAR`: the number of solar
+- `--NO_WIND`: the number of wind
+- `--NORMALIZE_WEATHER`: to normalize the weather data
+- `--SAVE_DIR`: the directory to save the data
+
+The algorithm will automatically pick the bus data in the original dataset that contain the most uncorrelated load. For each `bus_{id}.csv` file, the corresponding weather, calendar, solar (if exists), and wind (if exists) data will be generated. 
+
+NOTE: the data (load, solar, wind) is not scaled so that another step is needed to map it into the scale of the power system under test.
+
+PS. Our previous paper 'E2E-AT: A Unified Framework for Tackling Uncertainty in Task-Aware End-to-End Learning' and 'Task-aware machine unlearning and its application in load forecasting' also use the same data generation method.
 <!-- ### Reformulate the problem as standardard form QP/MIQP
 
 The functions in `test/standard_form.py` are developed to reformulate the UC/ED in `cvxpy` form into the correspinding standard form. This conversion is general in addition to the UC/ED. Therefore it can be used outside power system operation. In this sense, you can "standardize" your problem by leveraging the descriptive power of `cvxpy`.

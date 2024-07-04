@@ -1,10 +1,15 @@
 # my entry
 *.xlsx
+*.csv
+*.txt
 archive/
 test.py
 !case14.xlsx
 *.ipynb
+*.zip
 delete_file/
+data/Data_public
+*.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
