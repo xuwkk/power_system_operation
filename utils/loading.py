@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from operation import Operation
 from operation.power_operation_vector import Operation as Operation_vector
 import json
+from copy import deepcopy
 
 def load_grid(pypower_case_name: str, config_path, vectorize = False):
     """
@@ -24,6 +25,24 @@ def load_grid(pypower_case_name: str, config_path, vectorize = False):
         my_grid = Operation_vector(f"configs/{pypower_case_name}.xlsx")
     else:
         my_grid = Operation(f"configs/{pypower_case_name}.xlsx")
+    
+    gen_cap = np.sum(my_grid.pgmax)
+    total_cap = deepcopy(gen_cap)
+    default_load = np.sum(my_grid.load_default)
+    
+    if my_grid.no_solar > 0:
+        solar_cap = np.sum(my_grid.solar_default)
+        total_cap += solar_cap
+    if my_grid.no_wind > 0:
+        wind_cap = np.sum(my_grid.wind_default)
+        total_cap += wind_cap
+    
+    print("=========system summary=========")
+    print(f"total generator capacity: {gen_cap}")
+    print(f"total solar capacity: {solar_cap}")
+    print(f"total wind capacity: {wind_cap}")
+    print(f"max load penetration: {default_load / total_cap}")
+
 
     return my_grid
 
@@ -154,14 +173,27 @@ def from_pypower(pypower_case_name: str, new_configs: dict):
         base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
         data_frame["load"]["clshed"] = base_value * new_configs["load"]["clshed_ratio"] * np.ones(len(data_frame["load"]))
     
-    if "csshed_ratio" in new_configs["solar"].keys() and with_solar:
-        base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
-        data_frame["solar"]["csshed"] = base_value * new_configs["solar"]["csshed_ratio"] * np.ones(len(data_frame["solar"]))
-    
-    if "cwshed_ratio" in new_configs["wind"].keys() and with_wind:
-        base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
-        data_frame["wind"]["cwshed"] = base_value * new_configs["wind"]["cwshed_ratio"] * np.ones(len(data_frame["wind"]))
+    gen_cap = np.sum(data_frame["gen"]["pgmax"])
 
+    total_cap = deepcopy(gen_cap)
+
+    if with_solar:
+        if "csshed_ratio" in new_configs["solar"].keys():
+            base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
+            data_frame["solar"]["csshed"] = base_value * new_configs["solar"]["csshed_ratio"] * np.ones(len(data_frame["solar"]))
+        data_frame["solar"]["default"] = gen_cap * np.array(new_configs["solar"]["default_ratio"])
+        total_cap += data_frame["solar"]["default"].sum()
+
+    if with_wind:
+        if "cwshed_ratio" in new_configs["wind"].keys():
+            base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
+            data_frame["wind"]["cwshed"] = base_value * new_configs["wind"]["cwshed_ratio"] * np.ones(len(data_frame["wind"]))
+        data_frame["wind"]["default"] = gen_cap * np.array(new_configs["wind"]["default_ratio"])
+        total_cap += data_frame["wind"]["default"].sum()
+    
+    # rescale the load
+    data_frame["load"]["default"] = new_configs["load"]["max_default_ratio"] * data_frame["load"]["default"] * total_cap / np.sum(data_frame["load"]["default"])
+    
     # save to excel
     with pd.ExcelWriter(f"configs/{pypower_case_name}.xlsx", engine='xlsxwriter') as writer:
         for element_name, element_df in data_frame.items():
