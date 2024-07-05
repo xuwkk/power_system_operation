@@ -10,6 +10,8 @@ test.py
 delete_file/
 data/Data_public
 *.DS_Store
+*.pptx
+*.npy
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
