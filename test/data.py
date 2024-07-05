@@ -18,10 +18,12 @@ def test_data(xlsx_path, data_folder):
         data = pd.read_csv(os.path.join(data_folder, f"data_{i}.csv"))
         assert np.isclose(np.max(data['Load']), load_config['default'][i - 1], atol=1e-5), f"load {i} value is not correct"
         if data['Solar'].sum() > 0:
+            print(f"load {i} has solar")
             bus_idx = load_config['idx'][i - 1] # the bus index of the load
             idx = solar_config[solar_config['idx'] == bus_idx].index.values[0]
             assert np.isclose(np.max(data['Solar']), solar_config['default'][idx], atol=1e-5), f"solar {i} value is not correct"
         if data['Wind'].sum() > 0:
+            print(f"load {i} has wind")
             bus_idx = load_config['idx'][i - 1] # the bus index of the load
             idx = wind_config[wind_config['idx'] == bus_idx].index.values[0]
             assert np.isclose(np.max(data['Wind']), wind_config['default'][idx], atol=1e-5), f"wind {i} value is not correct"

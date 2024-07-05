@@ -41,6 +41,7 @@ def load_grid_from_xlsx(xlsx_path: str, vectorize = False):
     
     grid_summary(my_grid)
 
+    return my_grid
 
 def load_grid_from_config(pypower_case_name: str, config_path, vectorize = False):
     """

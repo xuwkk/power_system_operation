@@ -101,7 +101,9 @@ class PowerGrid:
         self.Gsh = bus['GS'].values / baseMVA
 
         self.pfmax = branch["pfmax"].values / baseMVA
-    
+        
+        self.baseMVA = baseMVA
+        
     @staticmethod
     def _to_python_idx(idx):
         """convert to the 0-based index"""
