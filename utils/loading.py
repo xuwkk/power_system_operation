@@ -8,33 +8,19 @@ from operation.power_operation_vector import Operation as Operation_vector
 import json
 from copy import deepcopy
 
-def load_grid(pypower_case_name: str, config_path, vectorize = False):
+def grid_summary(grid):
     """
-    main function to load a grid
-    pypower_case_name: must be a valid pypower case name, see: https://rwl.github.io/PYPOWER/api/
-    config_path: the path to the configuration file
+    return basic information of the grid
     """
-
-    with open(config_path, "r") as f:
-        # load the configurations
-        my_configs = json.load(f)
-    # load pypower grid and overwrite the default settings
-    from_pypower(pypower_case_name, my_configs) # construct the excel file
-
-    if vectorize:
-        my_grid = Operation_vector(f"configs/{pypower_case_name}.xlsx")
-    else:
-        my_grid = Operation(f"configs/{pypower_case_name}.xlsx")
-    
-    gen_cap = np.sum(my_grid.pgmax)
+    gen_cap = np.sum(grid.pgmax)
     total_cap = deepcopy(gen_cap)
-    default_load = np.sum(my_grid.load_default)
+    default_load = np.sum(grid.load_default)
     
-    if my_grid.no_solar > 0:
-        solar_cap = np.sum(my_grid.solar_default)
+    if grid.no_solar > 0:
+        solar_cap = np.sum(grid.solar_default)
         total_cap += solar_cap
-    if my_grid.no_wind > 0:
-        wind_cap = np.sum(my_grid.wind_default)
+    if grid.no_wind > 0:
+        wind_cap = np.sum(grid.wind_default)
         total_cap += wind_cap
     
     print("=========system summary=========")
@@ -43,17 +29,50 @@ def load_grid(pypower_case_name: str, config_path, vectorize = False):
     print(f"total wind capacity: {wind_cap}")
     print(f"max load penetration: {default_load / total_cap}")
 
+def load_grid_from_xlsx(xlsx_path: str, vectorize = False):
+    """
+    load the grid from the excel file
+    """
+
+    if vectorize:
+        my_grid = Operation_vector(xlsx_path)
+    else:
+        my_grid = Operation(xlsx_path)
+    
+    grid_summary(my_grid)
+
+
+def load_grid_from_config(pypower_case_name: str, config_path, vectorize = False):
+    """
+    load the grid from the pypower case and the extra configurations
+    pypower_case_name: must be a valid pypower case name, see: https://rwl.github.io/PYPOWER/api/
+    config_path: the path to the configuration file
+    """
+
+    from_pypower(pypower_case_name, config_path) # construct the excel file
+
+    if vectorize:
+        my_grid = Operation_vector(f"configs/{pypower_case_name}.xlsx")
+    else:
+        my_grid = Operation(f"configs/{pypower_case_name}.xlsx")
+    
+    grid_summary(my_grid)
 
     return my_grid
 
-def load_grid_pypower(pypower_case_name):
-    grid = getattr(api, pypower_case_name)()
-    return grid
-
-def from_pypower(pypower_case_name: str, new_configs: dict):
+def from_pypower(pypower_case_name: str, config_path: str):
     """
     load grid from pypower and add/overwrite the default settings by the new_configs
+    config_path: the path to the extra configs
     """
+
+    with open(config_path, "r") as f:
+        # load the configurations
+        new_configs = json.load(f)
+
+    def load_grid_pypower(pypower_case_name):
+        grid = getattr(api, pypower_case_name)()
+        return grid
 
     configs = load_grid_pypower(pypower_case_name) # pypower case
 
@@ -125,7 +144,7 @@ def from_pypower(pypower_case_name: str, new_configs: dict):
         data_frame["solar"] = solar
     if with_wind:
         data_frame["wind"] = wind
-
+        
     """
     overwrite the default settings from pypower
     """
@@ -198,3 +217,9 @@ def from_pypower(pypower_case_name: str, new_configs: dict):
     with pd.ExcelWriter(f"configs/{pypower_case_name}.xlsx", engine='xlsxwriter') as writer:
         for element_name, element_df in data_frame.items():
             element_df.to_excel(writer, sheet_name=element_name, index=False)
+    
+    no_load = len(data_frame["load"])
+    no_solar = len(data_frame["solar"]) if with_solar else 0
+    no_wind = len(data_frame["wind"]) if with_wind else 0
+
+    return no_load, no_solar, no_wind
