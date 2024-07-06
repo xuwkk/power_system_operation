@@ -1,7 +1,7 @@
 """
 a complete pipeline to construct grid and generate data for case14 system
 """
-from utils import from_pypower, assign_data
+from utils import from_pypower, assign_data, modify_pfmax, load_grid_from_xlsx
 
 if __name__ == "__main__":
 
@@ -29,13 +29,12 @@ if __name__ == "__main__":
         seed = 0,
         force_new = args.force_new
         )
-
-    # save_dir = "data/" + args.pypower_case_name + "/"
-
-    # # collect the raw data
-    # gen_data(NO_BUS=no_load, SAVE_DIR=save_dir, NORMALIZE_WEATHER=args.normalize_weather,
-    #                     SOLAR_NO=no_solar, WIND_NO=no_wind, FORCE_NEW=args.force_new)
     
-    # # assign data to load
-    # assign_data_to_load(system_path = f"configs/{args.pypower_case_name}.xlsx", 
-    #                     data_path = save_dir)
+    grid_op = load_grid_from_xlsx(
+        xlsx_path = f"configs/{args.pypower_case_name}.xlsx", vectorize=False
+        )
+    opt_name = 'ncuc_no_int'
+    T = 6
+    modify_pfmax(grid_op=grid_op, opt_name=opt_name, T=T, data_folder = "data/" + args.pypower_case_name + "/",
+                min_pfmax = 0.3,
+                xlsx_dir = 'configs/case14.xlsx')

@@ -5,12 +5,12 @@ test the grid matrices Bbus, Bf, Pbusinj, Pfinj are the same to the PyPower resu
 import sys
 import numpy as np
 sys.path.append('.')
-from utils import load_grid
+from utils import load_grid_from_config
 from pypower import api
 
 def test_grid_formulation(pypower_case_name, config_path):
     
-    my_grid = load_grid(pypower_case_name, config_path)
+    my_grid = load_grid_from_config(pypower_case_name, config_path)
     grid_pypower = getattr(api, pypower_case_name)()
     grid_pypower_int = api.ext2int(grid_pypower)
 

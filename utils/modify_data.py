@@ -8,6 +8,10 @@ import numpy as np
 import os
 import random
 import shutil
+import sys
+sys.path.append('.')
+from utils import from_pypower, return_compiler, return_standard_form
+from tqdm import trange
 
 def assign_data(xlsx_dir, no_load, no_solar, no_wind, save_dir, seed, force_new = False):
     """
@@ -120,8 +124,90 @@ def assign_data(xlsx_dir, no_load, no_solar, no_wind, save_dir, seed, force_new 
     for i in range(1, no_load + 1):
         data_all[i].to_csv(os.path.join(save_dir, f'data_{i}.csv'), index=False)
 
-def modify_pfmax():
+def modify_pfmax(grid_op, opt_name, T, data_folder, min_pfmax, xlsx_dir):
     """
-    reduce the maximum branch limits 
+    reduce the maximum branch limits (so that the grid optimization is not trivial)
+    grid_op: the grid operation class
+    opt_name: the name of the optimization problem
+    T: the number of time steps
+    data_folder: the folder that contains the data
+    min_pfmax: the minimum branch flow limits
     """
-    pass
+
+    print("==========modify the maximum branch limits==========")
+
+    # monitor the maximum branch limits of each transmission line
+    no_load = grid_op.no_load
+
+    print('no grid:', no_load)
+
+    load_all, solar_all, wind_all = [], [], []
+
+    for i in range(1, no_load + 1):
+        # ! the index of the file name starts from 1 and the sequence is the same to the config file
+        data = pd.read_csv(os.path.join(data_folder, f'data_{i}.csv'))
+        load_all.append(data['Load'].values)
+        if np.sum(data['Solar']) > 0:
+            solar_all.append(data['Solar'].values)
+        if np.sum(data['Wind']) > 0:
+            wind_all.append(data['Wind'].values)
+
+    load_all = np.array(load_all).T / grid_op.baseMVA
+    solar_all = np.array(solar_all).T / grid_op.baseMVA
+    wind_all = np.array(wind_all).T / grid_op.baseMVA
+
+    no_sample = load_all.shape[0]
+    # no_sample = 200
+
+    print('load, solar, wind shape')
+    print(load_all.shape, solar_all.shape, wind_all.shape)
+
+    # start at the maximum generator output
+    grid_op.pfmax = np.ones(grid_op.no_branch) * np.max(grid_op.pgmax)
+    prob = getattr(grid_op, opt_name)(T = T)
+
+    best_pfmax = np.copy(grid_op.pfmax)
+    
+    pf_summary = []
+    infeasible_indicator = 0
+    
+    for i in trange(no_sample - T + 1, desc='solve the grid'):
+        params_val_dict = {
+            "load": load_all[i:i + T],
+            "solar": solar_all[i:i + T],
+            "wind": wind_all[i:i + T],
+            "reserve": np.zeros(T),
+            "pg_init": grid_op.pgmax * 0.5
+        }
+
+        grid_op.solve(prob, params_val_dict)
+
+        for variable in prob.variables():
+            if variable.name() == 'theta':
+                theta = variable.value
+            if variable.name() == 'ls':
+                ls_indicator = np.sum(variable.value)
+            if variable.name() == 'solarc':
+                solarc_indicator = np.sum(variable.value)
+            if variable.name() == 'windc':
+                windc_indicator = np.sum(variable.value)
+        
+        if ls_indicator > 0 or solarc_indicator > 0 or windc_indicator > 0:
+            infeasible_indicator += 1
+        
+        pf = grid_op.get_pf(theta)
+        pf_summary.append(pf)
+
+    pf_summary = np.concatenate(pf_summary, axis=0)
+    pf_max = np.max(np.abs(pf_summary), axis=0)
+    
+    print('max pf:', pf_max)
+
+    # modify the maximum branch limits
+    config = pd.read_excel(xlsx_dir, sheet_name=None, engine='openpyxl')
+    config['branch']['pfmax'] = np.clip(pf_max, a_min=min_pfmax, a_max=None) * grid_op.baseMVA
+
+    # save
+    with pd.ExcelWriter(xlsx_dir, engine='xlsxwriter') as writer:
+        for element_name, element_df in config.items():
+            element_df.to_excel(writer, sheet_name=element_name, index=False)

@@ -5,13 +5,13 @@
 ## Introduction
 
 The main purpose of this repository is to 
-1. Provide an efficient I/O for generating the optimization problem in power system operation.
+1. Provide an efficient I/O for generating the power system testbed for optimization problem.
 2. Host a set of basic power system operation formulations for the future research and teaching purposes. 
-3. The package also comes with an efficient modifications of the load, solar, and wind data that are suitable for the propose power system case study. Therefore, it can be used to machine learning applications with large training dataset.
+3. The package also comes with an efficient modifications of the load, solar, and wind data that are suitable for the proposed power system case study. Therefore, it can be used to train machine and deep learning models with large training dataset.
 
 ## Package Dependencies
 
-[cvxpy](https://www.cvxpy.org/): is an open source Python-embedded modeling language for convex optimization problems. It lets you express your problem in a natural and matrix way that follows the math, rather than in the restrictive standard form required by solvers. 
+[cvxpy](https://www.cvxpy.org/): is an open source Python-embedded modeling language for convex optimization problems. It lets you express your problem in a natural and matrix way that follows the math, rather than in the restrictive standard form required by different solvers. 
 
 Note: you may also need to have Gurobi, Mosek or other optimization software to efficiently solve the optimization problems, especially if integers are included. Please refer [here](https://www.cvxpy.org/tutorial/advanced/index.html) for details.
 
@@ -33,10 +33,9 @@ The implementation of this repo follows the online cource [here](https://u.osu.e
 ## Power System Operation
 
 This repo contains some basic power system operations written in Python and formulated by `cvxpy`, such as:
-- Network Constrained Unit Commitment (with/out integer variables) (finished) 
+- Network Constrained Unit Commitment (with/out integer variables, and various tim e steps) (finished) 
 - Economic Dispatch (finished)
 - Stochastic Unit Commitment (ongoing)
-
 
 
 ## Data Generation
@@ -56,53 +55,32 @@ unzip data/raw_data.zip -d data/
 
 This will give a new folder `data/Data_public/`. 
 
-Then we need to group the feature-label pairs for each data (bus). There are 123 buses in total. To group the data, run
+Then we need to group the feature-label pairs for each data (bus). There are 123 buses in the Texas backbone power system. To group the data, run
 ```bash
 python data/group_data.py
 ```
 
-Note: you only need to run this script once.
+Note: This may take several minutes but you only need to run this script once. 
 
 ### Step two: Generate Power Grid Case
 
 The optimization formulation replies on reading system configuration from a `.xlsx` file. There are several ways to construct the configuration file, either from scratch or build it from existing configurations via the `PyPower` package. An example file can be found [here](configs/case14.xlsx).
 
-We recommend to construct the `.xlsx` file from the basic `PyPower` file to avoid errors. The `PyPower` contains several grid topology and parameters that can be directly read by the package. However, you must include several necessary extra configs (that are not covered by the `PyPower`) to support the full functionality of power system operation. For example, you need to specifiy the up and down cost and limit of the generators to formulate the UC. An example can be found [here](configs/case14_default.json). The detailed description on how to construct the extra config file can be found [here](readme_configs.md).
+We recommend to construct the `.xlsx` file from the basic `PyPower` file to avoid errors. The `PyPower` contains useful grid topology and parameters that can be directly read by the package. However, you must include several necessary extra configs (that are not covered by the `PyPower`) to support the full functionality of power system operation. For example, you need to specifiy the up and down cost and limit of the generators to formulate the UC. An example can be found [here](configs/case14_default.json). The detailed description on how to construct the extra config file can be found [here](readme_configs.md).
 
 For instance, to generate the case14, run
 ```bash
 no_load, no_solar, no_wind = from_pypower('case14', 'configs/case14_default.json')
 ```
 
-The function `from_pypower` will generate the `case14.xlsx` file in the `configs/` folder. It will also rescale the default load, solar, and wind data to the defined power_ratio.
-    
+The function `from_pypower` will generate the `case14.xlsx` file in the `configs/` folder. It will also rescale the default load, solar, and wind data to the defined power_ratio in the config file.
 
-To clean the data, run
-```bash
-python utils/data.py --FORCE_NEW
-```
-Other argument includes
-- `--FORCE_NEW`: to force the data to be re-generated and all the previous data will be removed
-- `--NO_LOAD`: the number of load
-- `--NO_SOLAR`: the number of solar
-- `--NO_WIND`: the number of wind
-- `--NORMALIZE_WEATHER`: to normalize the weather data
-- `--SAVE_DIR`: the directory to save the data
-
-The algorithm will automatically pick the bus data in the original dataset that contain the most uncorrelated load. For each `bus_{id}.csv` file, the corresponding weather, calendar, solar (if exists), and wind (if exists) data will be generated. 
-
-NOTE: the data (load, solar, wind) is not scaled so that another step is needed to map it into the scale of the power system under test.
 
 ### Step Three: Assign and Rescale the Data to Load
 
-The next step is to assign the grouped data to the buses defined in the configuration file. First, the grouped data will be first assigned to the solar or wind buses. Then, the remaining bus will be assigned with the remaining grouped data.
+The next step is to assign the grouped data to the buses defined in the configuration file. First, the grouped data will be first assigned to the solar or wind buses. Then, the remaining bus will be assigned with the remaining grouped data. The solar, wind, and load will be rescaled into their default values.
 
-A new folder will be constructed with the modified grouped data in  the sequence of the load.
-
-This repo contains some basic power system operations written in Python and formulated by `cvxpy`, such as:
-- Network Constrained Unit Commitment (with/out integer variables) (finished) 
-- Economic Dispatch (finished)
-- Stochastic Unit Commitment (ongoing)
+A new folder will be constructed with the modified grouped data in the sequence of the load.
 
 ## Test Files
 
