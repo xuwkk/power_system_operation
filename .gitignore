@@ -4,7 +4,6 @@
 *.txt
 archive/
 test.py
-!case14.xlsx
 *.ipynb
 *.zip
 delete_file/

@@ -1,7 +1,9 @@
 """
 a complete pipeline to construct grid and generate data for case14 system
 """
+from data.group_data import group_data
 from utils import from_pypower, assign_data, modify_pfmax, load_grid_from_xlsx
+
 
 if __name__ == "__main__":
 
@@ -9,27 +11,28 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--pypower_case_name', type=str, default="case14")
-    parser.add_argument('-c', '--config_path', type=str, default="configs/case14_default.json")
+    parser.add_argument('-c', '--extra_config_path', type=str, default="configs/case14_default.json")
     parser.add_argument('-f', '--force_new', default = False, action='store_true')
     args = parser.parse_args()
     
-    no_load, no_solar, no_wind = from_pypower(
+    """clean the data"""
+    group_data()
+    
+    from_pypower(
         pypower_case_name=args.pypower_case_name, 
-        config_path=args.config_path
+        extra_config_path=args.extra_config_path
         )
     
-    print('no load:', no_load, 'no solar:', no_solar, 'no wind:', no_wind)
-
     assign_data(
         xlsx_dir = 'configs/case14.xlsx',
-        no_load = no_load, 
-        no_solar = no_solar, 
-        no_wind = no_wind,
+        # no_load = no_load, 
+        # no_solar = no_solar, 
+        # no_wind = no_wind,
         save_dir = "data/" + args.pypower_case_name + "/",
         seed = 0,
         force_new = args.force_new
         )
-    
+        
     grid_op = load_grid_from_xlsx(
         xlsx_path = f"configs/{args.pypower_case_name}.xlsx", vectorize=False
         )

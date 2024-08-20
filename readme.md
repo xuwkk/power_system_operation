@@ -60,6 +60,8 @@ Then we need to group the feature-label pairs for each data (bus). There are 123
 python data/group_data.py
 ```
 
+This will result in folder `data/data_grouped/` which contains `.cvx` files for all 123 buses dataset.
+
 Note: This may take several minutes but you only need to run this script once. 
 
 ### Step two: Generate Power Grid Case
@@ -88,9 +90,9 @@ The package comes with several ready-to-use test files in `test/`. You can learn
 
 ## Comments
 
-This dataset and power system optimization toolbox has been used in our previous paper:
-1. E2E-AT: A Unified Framework for Tackling Uncertainty in Task-Aware End-to-End Learning
-2. Task-aware machine unlearning and its application in load forecasting
+Part of the dataset and power system optimization toolbox has been used in our previous paper:
+1. Xu, Wangkun, Jianhong Wang, and Fei Teng. "E2E-AT: A Unified Framework for Tackling Uncertainty in Task-Aware End-to-End Learning." Proceedings of the AAAI Conference on Artificial Intelligence. Vol. 38. No. 14. 2024.
+2. Xu, Wangkun, and Fei Teng. "Task-aware machine unlearning and its application in load forecasting." IEEE Transactions on Power Systems (2024).
 
 <!-- ### Reformulate the problem as standardard form QP/MIQP
 

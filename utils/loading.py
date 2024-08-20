@@ -1,3 +1,4 @@
+"""construct the xlsx configuration file for given pypower case and extra configurations"""
 from pypower import api
 import numpy as np
 import pandas as pd
@@ -9,9 +10,8 @@ import json
 from copy import deepcopy
 
 def grid_summary(grid):
-    """
-    return basic information of the grid
-    """
+    """return basic information of the grid
+    grid: a PowerGrid object"""
     gen_cap = np.sum(grid.pgmax)
     total_cap = deepcopy(gen_cap)
     default_load = np.sum(grid.load_default)
@@ -27,12 +27,11 @@ def grid_summary(grid):
     print(f"total generator capacity: {gen_cap}")
     print(f"total solar capacity: {solar_cap}")
     print(f"total wind capacity: {wind_cap}")
+    print(f"max renewable capacity: {(solar_cap + wind_cap) / total_cap}")
     print(f"max load penetration: {default_load / total_cap}")
 
 def load_grid_from_xlsx(xlsx_path: str, vectorize = False):
-    """
-    load the grid from the excel file
-    """
+    """load the grid from the excel file"""
 
     if vectorize:
         my_grid = Operation_vector(xlsx_path)
@@ -61,15 +60,17 @@ def load_grid_from_config(pypower_case_name: str, config_path, vectorize = False
 
     return my_grid
 
-def from_pypower(pypower_case_name: str, config_path: str):
+def from_pypower(pypower_case_name: str, extra_config_path: str):
     """
     load grid from pypower and add/overwrite the default settings by the new_configs
-    config_path: the path to the extra configs
+    extra_config_path: the path to the new configs
     """
+    
+    print("========= Constructing the grid configuration =========")
 
-    with open(config_path, "r") as f:
-        # load the configurations
-        new_configs = json.load(f)
+    with open(extra_config_path, "r") as f:
+        # load the new configurations
+        extra_configs = json.load(f)
 
     def load_grid_pypower(pypower_case_name):
         grid = getattr(api, pypower_case_name)()
@@ -80,29 +81,37 @@ def from_pypower(pypower_case_name: str, config_path: str):
     """
     empty dataframes
     """
-    # construct the dataframes that contains new configurations apart from the pypower case
-    basic = pd.DataFrame(columns = ["baseMVA", "slack_idx", "slack_theta"])
-    bus = pd.DataFrame(columns = ["GS"]) # GS is the shunt conductance
+    # construct the dataframes that contains new configurations in addition to the pypower case
+    basic = pd.DataFrame(
+        columns = ["baseMVA", "slack_idx", "slack_theta"]
+        )
+    bus = pd.DataFrame(
+        columns = ["GS"]
+        ) # GS is the shunt conductance
     gen = pd.DataFrame(
         columns = ["idx", "pgmax", "pgmin", 
-                    "cgf", "cgv", "cgsu", "cgsd", "cgstore", # cost
-                    "rgu", "rgd", "rgsu", "rgsd"]   # constraint
+                    "cf", "cv", "cv2", "csu", "csd", "ces", # cost
+                    "ru", "rd", "rsu", "rsd", "rued", "rded"]   # constraint
                                 )
-    load = pd.DataFrame(columns = ["idx", "default", "clshed"]) # clshed is the load shedding cost
-    branch = pd.DataFrame(columns = ["fbus", "tbus", "x", "pfmax", "tap_ratio", "shift_angle"])
+    load = pd.DataFrame(
+        columns = ["idx", "default", "cls"]
+        ) # clshed is the load shedding cost
+    branch = pd.DataFrame(
+        columns = ["fbus", "tbus", "x", "pfmax", "tap_ratio", "shift_angle"]
+        )
     
     # check if solar and wind are present
-    with_solar = True if "solar" in new_configs.keys() else False
-    with_wind = True if "wind" in new_configs.keys() else False
+    with_solar = True if len(extra_configs["solar"]) != 0 else False
+    with_wind = True if len(extra_configs["wind"]) != 0 else False
     if with_solar:
-        solar = pd.DataFrame(columns = ["idx", "default", "csshed"])
-        solar["idx"] = new_configs["solar"]["idx"]
+        solar = pd.DataFrame(columns = ["idx", "default", "csc"])
+        solar["idx"] = extra_configs["solar"]["idx"]
     if  with_wind:
-        wind = pd.DataFrame(columns = ["idx", "default",  "cwshed"])
-        wind["idx"] = new_configs["wind"]["idx"]
+        wind = pd.DataFrame(columns = ["idx", "default",  "cwc"])
+        wind["idx"] = extra_configs["wind"]["idx"]
     
     """
-    add values
+    add pypower default settings to the dataframes
     ! all index are 1-based
     """
     # pypower default settings
@@ -110,7 +119,7 @@ def from_pypower(pypower_case_name: str, config_path: str):
     basic["slack_idx"] = [int(np.where(configs["bus"][:, BUS_TYPE] == 3)[0][0] + 1)]
     basic["slack_theta"] = [configs["bus"][basic["slack_idx"][0] - 1, VA]]
 
-    if new_configs["bus"]["shunt"]:
+    if extra_configs["bus"]["shunt"]:
         bus["GS"] = configs["bus"][:, GS]
     else:
         bus["GS"] = np.zeros(len(configs["bus"]))
@@ -150,9 +159,13 @@ def from_pypower(pypower_case_name: str, config_path: str):
     overwrite the default settings from pypower
     """
     # dictionary of new configurations
-    configs_new = {key: value for key, value in new_configs.items() if key in data_frame.keys()}
+    # configs_new = {key: value for key, value in new_configs.items() if key in data_frame.keys()}
 
-    for element_name, element_dict in configs_new.items():
+    for element_name, element_dict in extra_configs.items():
+        if not isinstance(element_dict, dict):
+            print(element_name, element_dict)
+            continue
+        
         for column_name, value in element_dict.items():
             if column_name in data_frame[element_name].columns:
                 # already exists in the dataframe constructed by the pypower case
@@ -160,21 +173,24 @@ def from_pypower(pypower_case_name: str, config_path: str):
                     if len(value) == len(data_frame[element_name]):
                         data_frame[element_name][column_name] = value
                     elif len(value) == 0:
+                        # no element do not overwrite
                         pass
                     elif len(value) == 1:
+                        # repeat this value for all elements
                         data_frame[element_name][column_name] = [value[0]] * len(data_frame[element_name])
                     else:
                         raise ValueError(f"Length mismatch for {column_name} in {element_name} in the new configurations")
                 else:
-                    # the value is scalar
-                    # branch[column_name] = [value] * len(branch)
-                    data_frame[element_name][column_name] = [value] * len(data_frame[element_name])
+                    pass
+                    # # the value is scalar
+                    # # branch[column_name] = [value] * len(branch)
+                    # data_frame[element_name][column_name] = [value] * len(data_frame[element_name])
     
     """
     the new configurations that are not in the pypower case
     """
     # the constraint _ratio entry
-    for column_name, value in new_configs["gen"].items():
+    for column_name, value in extra_configs["gen"].items():
         if "ratio" in column_name:
             # with respect to the pgmax
             base_value = data_frame["gen"]["pgmax"]
@@ -185,34 +201,35 @@ def from_pypower(pypower_case_name: str, config_path: str):
                 raise ValueError(f"Column {column_name} not found in gen")
     
     # the cost _ratio entry
-    if "cgstore_ratio" in new_configs["gen"].keys():
-        base_value = np.max(data_frame["gen"]["cgv"]) # with respect to the largest variable cost
-        data_frame["gen"]["cgstore"] = base_value * new_configs["gen"]["cgstore_ratio"] * np.ones(len(data_frame["gen"]))
+    base_value = np.max(data_frame["gen"]["cv"]) # with respect to the largest variable cost
+    data_frame["gen"]["ces"] = base_value * extra_configs["gen"]["ces_ratio"] * np.ones(len(data_frame["gen"]))
+    data_frame["load"]["cls"] = base_value * extra_configs["load"]["cls_ratio"] * np.ones(len(data_frame["load"]))
     
-    if "clshed_ratio" in new_configs["load"].keys():
-        base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
-        data_frame["load"]["clshed"] = base_value * new_configs["load"]["clshed_ratio"] * np.ones(len(data_frame["load"]))
+    # if "cgstore_ratio" in extra_configs["gen"].keys():
+    #     base_value = np.max(data_frame["gen"]["cv"]) # with respect to the largest variable cost
+    #     data_frame["gen"]["cgstore"] = base_value * new_configs["gen"]["cgstore_ratio"] * np.ones(len(data_frame["gen"]))
     
+    # if "clshed_ratio" in new_configs["load"].keys():
+    #     base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
+    #     data_frame["load"]["clshed"] = base_value * new_configs["load"]["clshed_ratio"] * np.ones(len(data_frame["load"]))
+    
+    """
+    reneable entry
+    """
     gen_cap = np.sum(data_frame["gen"]["pgmax"])
-
     total_cap = deepcopy(gen_cap)
-
     if with_solar:
-        if "csshed_ratio" in new_configs["solar"].keys():
-            base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
-            data_frame["solar"]["csshed"] = base_value * new_configs["solar"]["csshed_ratio"] * np.ones(len(data_frame["solar"]))
-        data_frame["solar"]["default"] = gen_cap * np.array(new_configs["solar"]["default_ratio"])
+        data_frame["solar"]["csc"] = base_value * extra_configs["solar"]["csc_ratio"] * np.ones(len(data_frame["solar"]))
+        data_frame["solar"]["default"] = gen_cap * np.array(extra_configs["solar"]["default_ratio"])
         total_cap += data_frame["solar"]["default"].sum()
 
     if with_wind:
-        if "cwshed_ratio" in new_configs["wind"].keys():
-            base_value = np.max(new_configs["gen"]["cgv"]) # with respect to the largest variable cost
-            data_frame["wind"]["cwshed"] = base_value * new_configs["wind"]["cwshed_ratio"] * np.ones(len(data_frame["wind"]))
-        data_frame["wind"]["default"] = gen_cap * np.array(new_configs["wind"]["default_ratio"])
+        data_frame["wind"]["cwc"] = base_value * extra_configs["wind"]["cwc_ratio"] * np.ones(len(data_frame["wind"]))
+        data_frame["wind"]["default"] = gen_cap * np.array(extra_configs["wind"]["default_ratio"])
         total_cap += data_frame["wind"]["default"].sum()
     
     # rescale the load
-    data_frame["load"]["default"] = new_configs["load"]["max_default_ratio"] * data_frame["load"]["default"] * total_cap / np.sum(data_frame["load"]["default"])
+    data_frame["load"]["default"] = extra_configs["load"]["max_default_ratio"] * data_frame["load"]["default"] * total_cap / np.sum(data_frame["load"]["default"])
     
     # save to excel
     with pd.ExcelWriter(f"configs/{pypower_case_name}.xlsx", engine='xlsxwriter') as writer:
@@ -223,4 +240,4 @@ def from_pypower(pypower_case_name: str, config_path: str):
     no_solar = len(data_frame["solar"]) if with_solar else 0
     no_wind = len(data_frame["wind"]) if with_wind else 0
 
-    return no_load, no_solar, no_wind
+    # return no_load, no_solar, no_wind

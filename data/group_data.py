@@ -9,6 +9,8 @@ import datetime
 import os
 
 def return_renewable_incidences(no_bus):
+    """dicts to link the solar and wind idx to the bus idx
+    given solar or wind idx, return the bus idx"""
 
     # link the generator idx to the bus idx
     # one bus can have multiple gen
@@ -18,6 +20,7 @@ def return_renewable_incidences(no_bus):
     # link the wind idx to the gen idx
     wind_data = pd.read_excel('data/Data_public/Generator_data.xlsx', sheet_name='Wind Plant Number')
 
+    # given bus idx return the gen idx
     bus_to_gen = {}
     for bus_idx in range(1, no_bus+1):
         gen_idx = gen_data[gen_data['Bus Number'] == bus_idx]['Gen Number'].values  # ! only consider one generator per bus
@@ -47,6 +50,12 @@ def return_renewable_incidences(no_bus):
 def group_data():
 
     print("========= Grouping data =========")
+    
+    save_dir = 'data/data_grouped'
+    
+    if os.path.exists(save_dir):
+        print("Data already grouped. To re-group, delete the 'data/data_grouped' directory.")
+        return
 
     no_bus = 123
     no_day = 365
@@ -112,8 +121,8 @@ def group_data():
     for wind_idx, bus_idx in wind_to_bus.items():
         data_all[bus_idx]['Wind'] = wind_all[wind_idx]
     
-    print('solar to bus:', solar_to_bus, 'length:', len(solar_to_bus))
-    print('wind to bus:', wind_to_bus, 'length:', len(wind_to_bus))
+    # print('solar to bus:', solar_to_bus, 'length:', len(solar_to_bus))
+    # print('wind to bus:', wind_to_bus, 'length:', len(wind_to_bus))
 
     # add calender data
     start_weekday = datetime.datetime(2019,1,1).weekday()
@@ -142,7 +151,6 @@ def group_data():
                     'Load', 'Solar', 'Wind']
     
     # save the data
-    save_dir = 'data/data_grouped'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 

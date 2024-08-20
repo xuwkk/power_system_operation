@@ -13,26 +13,30 @@ sys.path.append('.')
 from utils import from_pypower, return_compiler, return_standard_form
 from tqdm import trange
 
-def assign_data(xlsx_dir, no_load, no_solar, no_wind, save_dir, seed, force_new = False):
+def assign_data(xlsx_dir, save_dir, seed, force_new = False):
     """
-    xlsx_dir: the path to the configuration file in xlsx
-    no_load, no_solar, no_wind: the number of load, solar, and wind data to assign
+    xlsx_dir: the path to the configuration file in xlsx format (generated from utils.loading.py)
     save_dir: the directory to save the assigned data
     seed: the random seed
     force_new: if True, the function will assign new data even if the directory exists
     """
     
-    print("==========assign data to load and rescale==========")
+    print("========== Assign bus data to load and rescale ==========")
 
     if not force_new:
         if not os.path.exists(save_dir):
             print(f"directory {save_dir} does not exist, please set force_new = True to generate the data")
+        else:
+            print(f"directory {save_dir} exists, please set force_new = True if you want to generate new data")
         return 
 
     np.random.seed(seed)
     random.seed(seed)
 
-    load_config = pd.read_excel(xlsx_dir, sheet_name='load', engine='openpyxl')
+    all_sheets = pd.read_excel(xlsx_dir, sheet_name=None, engine='openpyxl') # as a dictionary
+    
+    load_config = all_sheets['load']
+    no_load = len(load_config)
     data_all = {key: [] for key in range(1, no_load + 1)}
 
     data_grouped_dir = 'data/data_grouped'
@@ -40,15 +44,19 @@ def assign_data(xlsx_dir, no_load, no_solar, no_wind, save_dir, seed, force_new 
     assigned_name = []
 
     # assign solar
-    if no_solar > 0:
-        solar_config = pd.read_excel(xlsx_dir, sheet_name='solar', engine='openpyxl')
+    if 'solar' in all_sheets.keys():
+        solar_config = all_sheets['solar']
         for i in range(len(solar_config)):
+            # find the corresponding load index of the solar bus
+            # it is assumed that the solar bus can only locate at the load bus
             bus_idx = solar_config['idx'][i]
             load_idx = load_config[load_config['idx'] == bus_idx].index.values[0] + 1
             for name in file_name:
+                # go through the bus data files until the bus data contains solar has been found
                 if '.csv' in name and name not in assigned_name:
                     data = pd.read_csv(os.path.join(data_grouped_dir, name))
-                    if np.sum(data['Solar']) > 0: # the data contains solar
+                    if np.sum(data['Solar']) > 0: # the bus data contains solar
+                        # the bus data does not have solar if the sum of solar is 0
                         assigned_name.append(name)
                         # rescale load
                         max_load = np.max(data['Load'])
@@ -61,7 +69,7 @@ def assign_data(xlsx_dir, no_load, no_solar, no_wind, save_dir, seed, force_new 
                         data_all[load_idx] = data
                         break
     
-    if no_wind > 0:
+    if 'wind' in all_sheets.keys():
         wind_config = pd.read_excel(xlsx_dir, sheet_name='wind', engine='openpyxl')
         for i in range(len(wind_config)):
             bus_idx = wind_config['idx'][i]
@@ -101,19 +109,6 @@ def assign_data(xlsx_dir, no_load, no_solar, no_wind, save_dir, seed, force_new 
             data_all[i] = data
             assigned_name.append(name)
             idx += 1
-
-    # for name in remaining_file_name:
-    #     data = pd.read_csv(os.path.join(data_grouped_dir, name))
-    #     max_load = np.max(data['Load'])
-    #     for i in range(1, no_load + 1):
-    #         if len(data_all[i]) == 0: # the load has not been assigned
-    #             default_load = load_config['default'][i - 1]
-    #             data['Load'] = data['Load'] * default_load / max_load
-    #             data['Solar'] = 0     # pure load bus
-    #             data['Wind'] = 0
-    #             data_all[i] = data
-    #             assigned_name.append(name)
-    #             break
     
     # save the data  
     if os.path.exists(save_dir):
