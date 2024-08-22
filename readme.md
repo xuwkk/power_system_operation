@@ -84,9 +84,25 @@ The next step is to assign the grouped data to the buses defined in the configur
 
 A new folder will be constructed with the modified grouped data in the sequence of the load.
 
+### Step Four (optional): Rescale the thermal limit of the transmission lines
+
+The thermal limit `pf_max` can be automatically altered based on the previously defined grid configuration, load level, generator level, and renewable levels so that the operation cannot be trivially solved. To do this, run 
+```bash 
+modify_pfmax(grid_op, with_int, T, 
+                f"data/{args.pypower_case_name}/", 
+                min_pfmax = 0.1, 
+                xlsx_dir = f"configs/{args.pypower_case_name}.xlsx")
+```
+
+This will overwrite the `pf_max` column in the generated `.xlsx` file.
+
 ## Test Files
 
 The package comes with several ready-to-use test files in `test/`. You can learn most of the operations by reading the test files.
+
+`test/data.py`: test if the data generation is correct. E.g., if the assigned load and renewable data have correct maximum values.
+`test/grid_formulation.py`: test if the grid matrices are the same to the `PyPower` package.
+
 
 ## Comments
 

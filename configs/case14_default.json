@@ -3,26 +3,26 @@
         "shunt": false
     },
     "load": {
-        "cls_ratio": 20,
+        "cls_ratio": 10000,
         "max_default_ratio": 0.8
     },
     "solar": {
         "idx": [5,13],
         "default_ratio": [0.05, 0.05],
-        "csc_ratio": 10
+        "csc_ratio": 100
     },
     "wind": {
         "idx": [11,14],
         "default_ratio": [0.1,0.1],
-        "cwc_ratio": 10
+        "cwc_ratio": 100
     },
     "gen": {
-        "cf": [5, 7, 6, 8, 5],
+        "cf": [5, 7, 6, 3, 3],
         "cv": [0.2, 0.1, 0.5, 0.6, 0.7],
         "cv2": [0.5, 0.4, 0.4, 0.3, 0.6],
         "csu": [20, 18, 10, 5, 5],
         "csd": [0.5, 0.2, 0.15, 0.15, 0.15],
-        "ces_ratio": 5,
+        "ces_ratio": 20,
         "ru_ratio": 0.5,
         "rd_ratio": 0.5,
         "rsu_ratio": 0.5,

@@ -5,7 +5,6 @@ import pandas as pd
 from .pypower_idx import *
 from collections.abc import Iterable
 from operation import Operation
-from operation.power_operation_vector import Operation as Operation_vector
 import json
 from copy import deepcopy
 
@@ -19,9 +18,13 @@ def grid_summary(grid):
     if grid.no_solar > 0:
         solar_cap = np.sum(grid.solar_default)
         total_cap += solar_cap
+    else:
+        solar_cap = 0
     if grid.no_wind > 0:
         wind_cap = np.sum(grid.wind_default)
         total_cap += wind_cap
+    else:
+        wind_cap = 0
     
     print("=========system summary=========")
     print(f"total generator capacity: {gen_cap}")
@@ -30,35 +33,32 @@ def grid_summary(grid):
     print(f"max renewable capacity: {(solar_cap + wind_cap) / total_cap}")
     print(f"max load penetration: {default_load / total_cap}")
 
-def load_grid_from_xlsx(xlsx_path: str, vectorize = False):
+def load_grid_from_xlsx(xlsx_path: str, T, reserve, pg_init_ratio = None, ug_init = None):
     """load the grid from the excel file"""
-
-    if vectorize:
-        my_grid = Operation_vector(xlsx_path)
-    else:
-        my_grid = Operation(xlsx_path)
+    
+    my_grid = Operation(xlsx_path, T, reserve, pg_init_ratio, ug_init)
     
     grid_summary(my_grid)
 
     return my_grid
 
-def load_grid_from_config(pypower_case_name: str, config_path, vectorize = False):
-    """
-    load the grid from the pypower case and the extra configurations
-    pypower_case_name: must be a valid pypower case name, see: https://rwl.github.io/PYPOWER/api/
-    config_path: the path to the configuration file
-    """
+# def load_grid_from_config(pypower_case_name: str, config_path, vectorize = False):
+#     """
+#     load the grid from the pypower case and the extra configurations
+#     pypower_case_name: must be a valid pypower case name, see: https://rwl.github.io/PYPOWER/api/
+#     config_path: the path to the configuration file
+#     """
 
-    from_pypower(pypower_case_name, config_path) # construct the excel file
+#     from_pypower(pypower_case_name, config_path) # construct the excel file
 
-    if vectorize:
-        my_grid = Operation_vector(f"configs/{pypower_case_name}.xlsx")
-    else:
-        my_grid = Operation(f"configs/{pypower_case_name}.xlsx")
+#     if vectorize:
+#         my_grid = Operation_vector(f"configs/{pypower_case_name}.xlsx")
+#     else:
+#         my_grid = Operation(f"configs/{pypower_case_name}.xlsx")
     
-    grid_summary(my_grid)
+#     grid_summary(my_grid)
 
-    return my_grid
+#     return my_grid
 
 def from_pypower(pypower_case_name: str, extra_config_path: str):
     """

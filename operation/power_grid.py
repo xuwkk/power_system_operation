@@ -12,18 +12,15 @@ class PowerGrid:
         """
         
         # read the excel file
-        basic = pd.read_excel(system_path, sheet_name="basic", engine='openpyxl')
-        bus = pd.read_excel(system_path, sheet_name="bus", engine='openpyxl')
-        gen = pd.read_excel(system_path, sheet_name="gen", engine='openpyxl')
-        load = pd.read_excel(system_path, sheet_name="load", engine='openpyxl')
-        branch = pd.read_excel(system_path, sheet_name="branch", engine='openpyxl')
-        try:
-            solar = pd.read_excel(system_path, sheet_name="solar", engine='openpyxl')
-        except:
+        all_sheets = pd.read_excel(system_path, sheet_name=None, engine='openpyxl')
+        basic, bus, gen, load, branch = all_sheets["basic"], all_sheets["bus"], all_sheets["gen"], all_sheets["load"], all_sheets["branch"]
+        if "solar" in all_sheets:
+            solar = all_sheets["solar"]
+        else:
             solar = None
-        try:
-            wind = pd.read_excel(system_path, sheet_name="wind", engine='openpyxl')
-        except:
+        if "wind" in all_sheets:
+            wind = all_sheets["wind"]
+        else:
             wind = None
 
         # no
@@ -41,6 +38,8 @@ class PowerGrid:
 
         # gen
         for column in gen.columns:
+            
+            # generator incidence matrix
             if column == "idx":
                 self.Cg = np.zeros((self.no_bus, self.no_gen))
                 for i in range(self.no_gen):
@@ -48,14 +47,15 @@ class PowerGrid:
                     self.Cg[idx, i] = 1
             
             # to p.u. on ramp and generation constraints
-            elif "rg" in column or "pg" in column:
+            elif "r" in column or "pg" in column:
                 setattr(self, column, gen[column].values / baseMVA)
             
             # cost
             else:
                 setattr(self, column, gen[column].values)
-            
-        self.cgv = self.cgv * baseMVA  # !convert to $/p.u.
+        
+        Warning("The cost is in $/p.u.")
+        # self.cgv = self.cgv * baseMVA
         
         # load
         self.Cl = np.zeros((self.no_bus, self.no_load))
@@ -63,12 +63,12 @@ class PowerGrid:
             idx = PowerGrid._to_python_idx(load["idx"][i])
             self.Cl[idx, i] = 1
         self.load_default = load["default"].values / baseMVA # to pu
-        self.clshed = load["clshed"].values * baseMVA # !convert to $/p.u.
+        self.cls = load["cls"].values
         
         # solar
         if solar is not None:
             self.solar_default = solar["default"].values / baseMVA
-            self.csshed = solar["csshed"].values * baseMVA # !convert to $/p.u.
+            self.csc = solar["csc"].values
             self.Cs = np.zeros((self.no_bus, self.no_solar))
             for i in range(self.no_solar):
                 idx = PowerGrid._to_python_idx(solar["idx"][i])
@@ -77,7 +77,7 @@ class PowerGrid:
         # wind
         if wind is not None:
             self.wind_default = wind["default"].values / baseMVA
-            self.cwshed = wind["cwshed"].values * baseMVA # !convert to $/p.u.
+            self.cwc = wind["cwc"].values
             self.Cw = np.zeros((self.no_bus, self.no_wind))
             for i in range(self.no_wind):
                 idx = PowerGrid._to_python_idx(wind["idx"][i])

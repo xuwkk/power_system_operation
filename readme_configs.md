@@ -2,20 +2,20 @@ The descriptions on the grid specifications can be found here. It is assumed tha
 
 There are six types of entries in the configuration file: bus, load, solar, wind, gen, and branch
 
-- Entry bus
+- **Entry bus**
 
 | Name | type | Description |
 | --- | --- | --- |
 | shunt | bool | If the bus has a shunt capacitor |
 
-- Entry load
+- **Entry load**
 
 | Name | type | Description |
 | --- | --- | --- |
-| cls_ratio | float | the cost of load shedding with respect to the maximum in cv |
+| cls_ratio | float | the cost of load shedding with respect to the maximum of cv |
 | max_default_ratio | float | load penetration level: the maximum total load with respect to the maximum total generation (including renewable). Maximum: 1 |
 
-- Entry solar: left as {} if no solar
+- **Entry solar**: left as {} if no solar
 
 | Name | type | Description |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ idx | list of int | the bus idx of the solar panel (start from 1) |
 default_ratio | list of float | solar peneration lavel: the default solar generation with respect to the maximum total generation (including renewable). Maximum: 1 |
 csc_ratio | float | the cost of solar curtailment with respect to the maximum in cv |
 
-- Entry wind: left as {} if no wind
+- **Entry wind**: left as {} if no wind
 
 | Name | type | Description |
 | --- | --- | --- |
@@ -31,7 +31,7 @@ idx | list of int | the bus idx of the wind turbine (start from 1) |
 default_ratio | list of float | wind peneration level: the default wind generation with respect to the maximum total generation (including renewable). Maximum: 1 |
 cwc_ratio | float | the cost of wind curtailment with respect to the maximum in cv |
 
-- Entry gen
+- **Entry gen**
 
 | Name | type | Description |
 | --- | --- | --- |

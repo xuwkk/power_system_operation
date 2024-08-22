@@ -18,26 +18,36 @@ if __name__ == "__main__":
     """clean the data"""
     group_data()
     
+    """generate the data"""
     from_pypower(
         pypower_case_name=args.pypower_case_name, 
         extra_config_path=args.extra_config_path
         )
     
+    """assign data to load bus"""
     assign_data(
         xlsx_dir = 'configs/case14.xlsx',
-        # no_load = no_load, 
-        # no_solar = no_solar, 
-        # no_wind = no_wind,
         save_dir = "data/" + args.pypower_case_name + "/",
         seed = 0,
         force_new = args.force_new
         )
+    
+    """you can change here"""
+    T = 6
+    with_int = False
+    reserve = 0.0
+    pg_init_ratio = 0.5
+    ug_init = 1
         
     grid_op = load_grid_from_xlsx(
-        xlsx_path = f"configs/{args.pypower_case_name}.xlsx", vectorize=False
+        xlsx_path = f"configs/{args.pypower_case_name}.xlsx", T = T, 
+        reserve = reserve, 
+        pg_init_ratio = pg_init_ratio, ug_init = ug_init
         )
-    opt_name = 'ncuc_no_int'
-    T = 6
-    modify_pfmax(grid_op=grid_op, opt_name=opt_name, T=T, data_folder = "data/" + args.pypower_case_name + "/",
-                min_pfmax = 0.3,
-                xlsx_dir = 'configs/case14.xlsx')
+    
+    modify_pfmax(grid_op, with_int, T, 
+                f"data/{args.pypower_case_name}/", 
+                min_pfmax = 0.1, 
+                scale_factor = 1.2,
+                xlsx_dir = f"configs/{args.pypower_case_name}.xlsx",
+                force_new = args.force_new)

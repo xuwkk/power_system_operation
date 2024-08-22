@@ -12,6 +12,7 @@ import sys
 sys.path.append('.')
 from utils import from_pypower, return_compiler, return_standard_form
 from tqdm import trange
+from pprint import pprint
 
 def assign_data(xlsx_dir, save_dir, seed, force_new = False):
     """
@@ -119,23 +120,8 @@ def assign_data(xlsx_dir, save_dir, seed, force_new = False):
     for i in range(1, no_load + 1):
         data_all[i].to_csv(os.path.join(save_dir, f'data_{i}.csv'), index=False)
 
-def modify_pfmax(grid_op, opt_name, T, data_folder, min_pfmax, xlsx_dir):
-    """
-    reduce the maximum branch limits (so that the grid optimization is not trivial)
-    grid_op: the grid operation class
-    opt_name: the name of the optimization problem
-    T: the number of time steps
-    data_folder: the folder that contains the data
-    min_pfmax: the minimum branch flow limits
-    """
-
-    print("==========modify the maximum branch limits==========")
-
-    # monitor the maximum branch limits of each transmission line
-    no_load = grid_op.no_load
-
-    print('no grid:', no_load)
-
+def get_data(no_load, data_folder, grid_op):
+    """return trh scaled version data"""
     load_all, solar_all, wind_all = [], [], []
 
     for i in range(1, no_load + 1):
@@ -148,59 +134,82 @@ def modify_pfmax(grid_op, opt_name, T, data_folder, min_pfmax, xlsx_dir):
             wind_all.append(data['Wind'].values)
 
     load_all = np.array(load_all).T / grid_op.baseMVA
-    solar_all = np.array(solar_all).T / grid_op.baseMVA
-    wind_all = np.array(wind_all).T / grid_op.baseMVA
+    if len(solar_all) == 0:
+        solar_all = None
+    else:
+        solar_all = np.array(solar_all).T / grid_op.baseMVA
+    if len(wind_all) == 0:
+        wind_all = None
+    else:
+        wind_all = np.array(wind_all).T / grid_op.baseMVA
 
-    no_sample = load_all.shape[0]
-    # no_sample = 200
+    return load_all, solar_all, wind_all
 
-    print('load, solar, wind shape')
-    print(load_all.shape, solar_all.shape, wind_all.shape)
+def modify_pfmax(grid_op, with_int, T, data_folder, min_pfmax, scale_factor, xlsx_dir,
+                force_new = False):
+    """
+    reduce the maximum branch limits (so that the grid optimization is not trivially solved)
+    grid_op: the grid operation class
+    data_folder: the folder that contains the data
+    min_pfmax: the minimum branch flow limits
+    """
 
-    # start at the maximum generator output
-    grid_op.pfmax = np.ones(grid_op.no_branch) * np.max(grid_op.pgmax)
-    prob = getattr(grid_op, opt_name)(T = T)
-
-    best_pfmax = np.copy(grid_op.pfmax)
+    print("==========modify the maximum branch limits==========")
     
+    if not force_new:
+        print(f"force_new is set to False, please set it to True to modify the maximum branch limits in place")
+        return
+
+    no_load = grid_op.no_load
+    # start at the maximum generator output
+    grid_op.pfmax = np.ones(grid_op.no_branch) * np.max(grid_op.pgmax) * 2
+    print('initial pf max:', grid_op.pfmax)
+    
+    prob, _ = grid_op.get_opt(with_int)
+    
+    load_all, solar_all, wind_all = get_data(no_load, data_folder, grid_op)
+    no_sample = load_all.shape[0]
+    # no_sample = 2000
     pf_summary = []
     infeasible_indicator = 0
     
     for i in trange(no_sample - T + 1, desc='solve the grid'):
+        
+        # ! vectorized formulation of the parameter
         params_val_dict = {
-            "load": load_all[i:i + T],
-            "solar": solar_all[i:i + T],
-            "wind": wind_all[i:i + T],
-            "reserve": np.zeros(T),
-            "pg_init": grid_op.pgmax * 0.5
+            "load": load_all[i:i + T].flatten(),  
         }
+        if solar_all is not None:
+            params_val_dict['solar'] = solar_all[i:i + T].flatten()
+        if wind_all is not None:
+            params_val_dict['wind'] = wind_all[i:i + T].flatten()
 
         grid_op.solve(prob, params_val_dict)
+        
+        optimal_sol = grid_op.get_sol(prob, T = T, reshaped = True)
+        
+        ls, solarc, windc = optimal_sol['ls'], optimal_sol['solarc'], optimal_sol['windc']
+        theta = optimal_sol['theta']
 
-        for variable in prob.variables():
-            if variable.name() == 'theta':
-                theta = variable.value
-            if variable.name() == 'ls':
-                ls_indicator = np.sum(variable.value)
-            if variable.name() == 'solarc':
-                solarc_indicator = np.sum(variable.value)
-            if variable.name() == 'windc':
-                windc_indicator = np.sum(variable.value)
-        
-        if ls_indicator > 0 or solarc_indicator > 0 or windc_indicator > 0:
+        ls_indicator, solarc_indicator, windc_indicator = np.sum(ls), np.sum(solarc), np.sum(windc)
+        indicator = ls_indicator + solarc_indicator + windc_indicator
+        if not np.isclose(indicator, 0, atol = 1e-6):
             infeasible_indicator += 1
-        
-        pf = grid_op.get_pf(theta)
+            pprint(optimal_sol)
+            assert False, "infeasible solution meets, please try to increase the penalization of the cls"
+
+        pf = grid_op.get_pf(theta) # a summary of the power flow
         pf_summary.append(pf)
+
+    print("infeasible rate:", infeasible_indicator / (no_sample - T + 1))
 
     pf_summary = np.concatenate(pf_summary, axis=0)
     pf_max = np.max(np.abs(pf_summary), axis=0)
-    
     print('max pf:', pf_max)
 
-    # modify the maximum branch limits
+    # modify the maximum branch limits from the xlsx file
     config = pd.read_excel(xlsx_dir, sheet_name=None, engine='openpyxl')
-    config['branch']['pfmax'] = np.clip(pf_max, a_min=min_pfmax, a_max=None) * grid_op.baseMVA
+    config['branch']['pfmax'] = np.clip(pf_max * scale_factor, a_min=min_pfmax, a_max=None) * grid_op.baseMVA
 
     # save
     with pd.ExcelWriter(xlsx_dir, engine='xlsxwriter') as writer:
