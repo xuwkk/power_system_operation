@@ -1,27 +1,27 @@
-{   "description": "extra configuration for IEEE bus-14 system",
+{   "description": "extra configuration for IEEE bus-118 system",
     "bus": {
         "shunt": false
     },
     "load": {
-        "cls_ratio": 10000,
-        "max_default_ratio": 0.75
+        "cls_ratio": 1000,
+        "max_default_ratio": 0.65
     },
     "solar": {
-        "idx": [5,13],
-        "default_ratio": [0.05, 0.05],
+        "idx": [7, 15, 35, 45, 55, 75, 85, 95],
+        "default_ratio": [0.01],
         "csc_ratio": 100
     },
     "wind": {
-        "idx": [11,14],
-        "default_ratio": [0.1,0.1],
+        "idx": [12, 27, 48, 58, 78, 88, 98, 108],
+        "default_ratio": [0.02],
         "cwc_ratio": 100
     },
     "gen": {
-        "cf": [5, 7, 6, 3, 3],
-        "cv": [0.2, 0.1, 0.5, 0.6, 0.7],
-        "cv2": [0.05, 0.04, 0.04, 0.03, 0.06],
-        "csu": [20, 18, 10, 5, 5],
-        "csd": [0.5, 0.2, 0.15, 0.15, 0.15],
+        "cf": [5],
+        "cv": [],
+        "cv2": [],
+        "csu": [20],
+        "csd": [0.5],
         "ces_ratio": 20,
         "ru_ratio": 0.5,
         "rd_ratio": 0.5,

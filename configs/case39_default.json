@@ -1,0 +1,39 @@
+{   "description": "extra configuration for IEEE bus-39 system",
+    "bus": {
+        "shunt": false
+    },
+    "load": {
+        "cls_ratio": 1000,
+        "max_default_ratio": 0.65
+    },
+    "solar": {
+        "idx": [7, 15, 18, 20],
+        "default_ratio": [0.05],
+        "csc_ratio": 100
+    },
+    "wind": {
+        "idx": [12, 16, 21, 25],
+        "default_ratio": [0.1],
+        "cwc_ratio": 100
+    },
+    "gen": {
+        "cf": [5],
+        "cv": [],
+        "cv2": [],
+        "csu": [20],
+        "csd": [0.5],
+        "ces_ratio": 20,
+        "ru_ratio": 0.4,
+        "rd_ratio": 0.4,
+        "rsu_ratio": 0.5,
+        "rsd_ratio": 0.5,
+        "rued_ratio": 0.1,
+        "rded_ratio": 0.2,
+        "pgmax": [],
+        "pgmin": []
+    },
+    "branch": {
+        "pfmax": [100.0],
+        "shift_angle": [0.0] 
+    }
+}

@@ -20,7 +20,7 @@ There are six types of entries in the configuration file: bus, load, solar, wind
 | Name | type | Description |
 | --- | --- | --- |
 idx | list of int | the bus idx of the solar panel (start from 1) |
-default_ratio | list of float | solar peneration lavel: the default solar generation with respect to the maximum total generation (including renewable). Maximum: 1 |
+default_ratio | list of float | solar peneration lavel: the default solar generation with respect to the maximum total generation (including renewable). If there is only one element, then all the ratios are the same. Maximum: 1 |
 csc_ratio | float | the cost of solar curtailment with respect to the maximum in cv |
 
 - **Entry wind**: left as {} if no wind
@@ -28,7 +28,7 @@ csc_ratio | float | the cost of solar curtailment with respect to the maximum in
 | Name | type | Description |
 | --- | --- | --- |
 idx | list of int | the bus idx of the wind turbine (start from 1) |
-default_ratio | list of float | wind peneration level: the default wind generation with respect to the maximum total generation (including renewable). Maximum: 1 |
+default_ratio | list of float | wind peneration level: the default wind generation with respect to the maximum total generation (including renewable). If there is only one element, then all the ratios are the same. Maximum: 1 |
 cwc_ratio | float | the cost of wind curtailment with respect to the maximum in cv |
 
 - **Entry gen**
@@ -36,8 +36,8 @@ cwc_ratio | float | the cost of wind curtailment with respect to the maximum in 
 | Name | type | Description |
 | --- | --- | --- |
 | cf | list of float | the fixed cost of the generator when its on |
-| cv | list of float | the variable cost of the generator |
-| cv2 | list of float | the quadratic variable cost of the generator |
+| cv | list of float | the variable cost of the generator. If empty, then the default value in PyPower is used.  |
+| cv2 | list of float | the quadratic variable cost of the generator. If empty, then the default value in PyPower is used. |
 | cu | list of float | the start up cost of the generator |
 | cd | list of float | the shut down cost of the generator |
 | ces_ratio | list of float | the energy storage cost of the generator with respect to the maximum in cv |

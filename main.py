@@ -18,7 +18,7 @@ if __name__ == "__main__":
     """clean the data"""
     group_data()
     
-    """generate the data"""
+    """generate the grid"""
     from_pypower(
         pypower_case_name=args.pypower_case_name, 
         extra_config_path=args.extra_config_path
@@ -26,8 +26,8 @@ if __name__ == "__main__":
     
     """assign data to load bus"""
     assign_data(
-        xlsx_dir = 'configs/case14.xlsx',
-        save_dir = "data/" + args.pypower_case_name + "/",
+        xlsx_dir = f'configs/{args.pypower_case_name}.xlsx',
+        save_dir = f"data/{args.pypower_case_name}/",
         seed = 0,
         force_new = args.force_new
         )
