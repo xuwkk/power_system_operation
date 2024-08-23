@@ -127,6 +127,8 @@ def from_pypower(pypower_case_name: str, extra_config_path: str):
     gen["idx"] = configs['gen'][:, GEN_BUS].tolist() # the default index is 1-based
     gen["pgmax"] = configs['gen'][:, PMAX].tolist()
     gen["pgmin"] = configs['gen'][:, PMIN].tolist()
+    gen["cv"] = configs['gencost'][:, 5].tolist()
+    gen["cv2"] = (configs['gencost'][:, 4] * configs["baseMVA"]).tolist() # match the p.u. conversion
 
     load_idx = np.where(configs["bus"][:, PD] != 0)[0] + 1
     load["idx"] = load_idx.tolist()
@@ -214,18 +216,24 @@ def from_pypower(pypower_case_name: str, extra_config_path: str):
     #     data_frame["load"]["clshed"] = base_value * new_configs["load"]["clshed_ratio"] * np.ones(len(data_frame["load"]))
     
     """
-    reneable entry
+    renewable entry
     """
     gen_cap = np.sum(data_frame["gen"]["pgmax"])
     total_cap = deepcopy(gen_cap)
     if with_solar:
         data_frame["solar"]["csc"] = base_value * extra_configs["solar"]["csc_ratio"] * np.ones(len(data_frame["solar"]))
-        data_frame["solar"]["default"] = gen_cap * np.array(extra_configs["solar"]["default_ratio"])
+        if len(extra_configs["solar"]["default_ratio"]) == 1:
+            data_frame["solar"]["default"] = gen_cap * np.array(extra_configs["solar"]["default_ratio"]) * np.ones(len(data_frame["solar"]))
+        else:
+            data_frame["solar"]["default"] = gen_cap * np.array(extra_configs["solar"]["default_ratio"])
         total_cap += data_frame["solar"]["default"].sum()
 
     if with_wind:
         data_frame["wind"]["cwc"] = base_value * extra_configs["wind"]["cwc_ratio"] * np.ones(len(data_frame["wind"]))
-        data_frame["wind"]["default"] = gen_cap * np.array(extra_configs["wind"]["default_ratio"])
+        if len(extra_configs["wind"]["default_ratio"]) == 1:
+            data_frame["wind"]["default"] = gen_cap * np.array(extra_configs["wind"]["default_ratio"]) * np.ones(len(data_frame["wind"]))
+        else:
+            data_frame["wind"]["default"] = gen_cap * np.array(extra_configs["wind"]["default_ratio"])
         total_cap += data_frame["wind"]["default"].sum()
     
     # rescale the load

@@ -29,7 +29,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--pypower_case_name', type=str, default="case14")
-    parser.add_argument('-c', '--xlsx_path', type=str, default="configs/case14.xlsx")
+    parser.add_argument('-x', '--xlsx_path', type=str, default="configs/case14.xlsx")
     args = parser.parse_args()
 
     test_grid_formulation(args.pypower_case_name, xlsx_path=args.xlsx_path)

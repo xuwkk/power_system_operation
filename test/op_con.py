@@ -13,9 +13,9 @@ def test(args):
     np.random.seed(0)
     
     # operation paraemter
-    T = 24
+    T = args.T
     with_int = False
-    reserve = 0.0
+    reserve = args.reserve
     pg_init_ratio = 0.5
     ug_init = 1
     
@@ -41,6 +41,9 @@ def test(args):
     for var in ed_cvxpy.variables():
         no_var_ed_cvxpy += np.prod(var.shape)
     
+    print(f'no var uc cvxpy: {no_var_uc_cvxpy}')
+    print(f'no var ed cvxpy: {no_var_ed_cvxpy}')
+    
     # obtain the standard form
     uc_stand = return_standard_form_in_cvxpy(uc_cvxpy)
     ed_stand = return_standard_form_in_cvxpy(ed_cvxpy)
@@ -54,10 +57,12 @@ def test(args):
     assert no_var_uc_cvxpy == no_var_uc_stand, "the number of variables in the uc problem is not consistent"
     assert no_var_ed_cvxpy == no_var_ed_stand, "the number of variables in the ed problem is not consistent"
 
-    no_sample = load_all.shape[0] - T + 1
+    # no_sample = load_all.shape[0] - T + 1
     # no_sample = 10
     
-    for i in tqdm(range(no_sample)):
+    sample_idx = np.random.choice(load_all.shape[0] - T + 1, args.no_sample, replace=False)
+    
+    for i in tqdm(sample_idx):
         
         """
         cvxpy solution
@@ -116,6 +121,9 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--pypower_case_name', type=str, default="case14")
+    parser.add_argument('-s', '--no_sample', type=int, default=1000)
+    parser.add_argument('-T', '--T', type=int, default=24)
+    parser.add_argument('-r', '--reserve', type=float, default=0.0)
     args = parser.parse_args()
     
     test(args)

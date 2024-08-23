@@ -31,8 +31,12 @@ def test_data(xlsx_path, data_folder):
     print("All data are correct")
 
 if __name__ == "__main__":
+    
+    import argparse
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-x', '--xlsx_path', type=str, default="configs/case14.xlsx")
+    parser.add_argument('-d', '--data_folder', type=str, default="data/case14")
+    args = parser.parse_args()
 
-    xlsx_path = "configs/case14.xlsx"
-    data_folder = "data/case14"
-
-    test_data(xlsx_path, data_folder)
+    test_data(args.xlsx_path, args.data_folder)

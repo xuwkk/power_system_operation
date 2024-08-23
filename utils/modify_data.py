@@ -173,17 +173,29 @@ def modify_pfmax(grid_op, with_int, T, data_folder, min_pfmax, scale_factor, xls
     pf_summary = []
     infeasible_indicator = 0
     
+    load_level_summary = []
+    
     for i in trange(no_sample - T + 1, desc='solve the grid'):
         
         # ! vectorized formulation of the parameter
         params_val_dict = {
             "load": load_all[i:i + T].flatten(),  
         }
+        total_load = np.sum(load_all[i:i + T], axis=1)
+        
+        total_gen = np.sum(grid_op.pgmax)
         if solar_all is not None:
             params_val_dict['solar'] = solar_all[i:i + T].flatten()
+            total_gen += np.sum(solar_all[i:i + T], axis=1)
         if wind_all is not None:
             params_val_dict['wind'] = wind_all[i:i + T].flatten()
-
+            total_gen += np.sum(wind_all[i:i + T], axis=1)
+        
+        assert np.all(total_load <= total_gen), "the total load is larger than the total generation, please consider reduce the max_default_ratio of the load"
+        
+        load_level = np.max(total_load / total_gen)
+        load_level_summary.append(load_level)
+        
         grid_op.solve(prob, params_val_dict)
         
         optimal_sol = grid_op.get_sol(prob, T = T, reshaped = True)
@@ -195,8 +207,12 @@ def modify_pfmax(grid_op, with_int, T, data_folder, min_pfmax, scale_factor, xls
         indicator = ls_indicator + solarc_indicator + windc_indicator
         if not np.isclose(indicator, 0, atol = 1e-6):
             infeasible_indicator += 1
-            pprint(optimal_sol)
-            assert False, "infeasible solution meets, please try to increase the penalization of the cls"
+            # pprint(optimal_sol)
+            print(f"ls: {ls_indicator}, solar: {solarc_indicator}, wind: {windc_indicator}")
+            print(f"ls: {ls}")
+            print(f"total load: {np.sum(load_all[i:i + T], axis=1)}")
+            print(f"maximum generator: {np.sum(grid_op.pgmax)}")
+            assert False, "infeasible solution meets, please try to increase the penalization of the cls."
 
         pf = grid_op.get_pf(theta) # a summary of the power flow
         pf_summary.append(pf)
@@ -206,6 +222,7 @@ def modify_pfmax(grid_op, with_int, T, data_folder, min_pfmax, scale_factor, xls
     pf_summary = np.concatenate(pf_summary, axis=0)
     pf_max = np.max(np.abs(pf_summary), axis=0)
     print('max pf:', pf_max)
+    print('max load penetration:', np.max(load_level_summary))
 
     # modify the maximum branch limits from the xlsx file
     config = pd.read_excel(xlsx_dir, sheet_name=None, engine='openpyxl')
