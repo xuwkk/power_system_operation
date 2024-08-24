@@ -414,8 +414,8 @@ class Operation(PowerGrid):
                             pg[t] >= cp.multiply(self.pgmin, ug[t])]
 
             # ramp limit
-            constraints += [pg[t] - pg_uc[t] <= cp.multiply(self.ru, ug[t]), 
-                            pg[t] - pg_uc[t] >= -cp.multiply(self.rd, ug[t])]
+            constraints += [pg[t] - pg_uc[t] <= cp.multiply(self.rued, ug[t]), 
+                            pg[t] - pg_uc[t] >= -cp.multiply(self.rded, ug[t])]
             
         # branch flow limit
         constraints = self._flow_constraint(constraints=constraints, theta=theta)
