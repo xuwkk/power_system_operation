@@ -1,7 +1,7 @@
 """
 a complete pipeline to construct grid and generate data for case14 system
 """
-from data.group_data import group_data
+from utils.group_data import group_data
 from utils import from_pypower, assign_data, modify_pfmax, load_grid_from_xlsx
 
 

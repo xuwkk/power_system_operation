@@ -1,5 +1,5 @@
 """
-group the original data into each data csv file
+group the original data (in Data_public) into each data csv file
 """
 
 import pandas as pd
